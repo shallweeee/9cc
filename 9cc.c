@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+//#define PRINT_TREE
+
 typedef enum {
   ND_ADD,
   ND_SUB,
@@ -150,14 +152,22 @@ Node* primary() {
   return new_node_num(expect_number());
 }
 
+Node* unary() {
+  if (consume('-'))
+    return new_node(ND_SUB, new_node_num(0), primary());
+
+  consume('+');
+  return primary();
+}
+
 Node* mul() {
-  Node* node = primary();
+  Node* node = unary();
 
   for (;;) {
     if (consume('*'))
-      node = new_node(ND_MUL, node, primary());
+      node = new_node(ND_MUL, node, unary());
     else if (consume('/'))
-      node = new_node(ND_DIV, node, primary());
+      node = new_node(ND_DIV, node, unary());
     else
       return node;
   }
@@ -175,6 +185,14 @@ Node* expr() {
       return node;
   }
 }
+
+/*
+ * EBNF
+ * expr    = mul ("+" mul | "-" mul)*
+ * mul     = unary ("*" unary | "/" unary)*
+ * unary   = ("+" | "-")? primary
+ * primary = num | "(" expr ")"
+ */
 
 #if defined(PRINT_TREE)
 void print_tree(Node* node) {
@@ -228,6 +246,9 @@ void gen_arm_asm(Node* node) {
       break;
     case ND_DIV:
       printf("  bl __aeabi_idiv\n");
+      break;
+    default:
+      error("Invalid op %d", node->kind);
       break;
   }
 

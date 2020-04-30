@@ -25,5 +25,8 @@ assert 14 '10/2+3*3'
 assert 6 '10/(2+3)*3'
 assert 24 '((1+2)+3)*4'
 assert 85 '(43-8)*3-20'
+assert 16 '((-1+2)+3)*4'
+assert 1 '-1--2'
+assert 15 '-3*+5/-1'
 
 echo OK
