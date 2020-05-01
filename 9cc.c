@@ -6,12 +6,21 @@
 #include <string.h>
 
 //#define PRINT_TREE
+//#define SUPPORT_GREATER
 
 typedef enum {
   ND_ADD,
   ND_SUB,
   ND_MUL,
   ND_DIV,
+  ND_EQU,
+  ND_NEQ,
+  ND_LT,
+  ND_LE,
+#if defined(SUPPORT_GREATER)
+  ND_GT,
+  ND_GE,
+#endif
   ND_NUM,
 } NodeKind;
 
@@ -36,6 +45,7 @@ struct Token {
   Token* next;
   int val;
   char* str;
+  int len;
 };
 
 char* user_input;
@@ -61,16 +71,18 @@ void error_at(char* loc, char* fmt, ...) {
   exit(1);
 }
 
-bool consume(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op)
+bool consume(char* op) {
+  if (token->kind != TK_RESERVED ||
+      strlen(op) != token->len || memcmp(op, token->str, token->len) != 0)
     return false;
   token = token->next;
   return true;
 }
 
-void expect(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op)
-    error_at(token->str, "It's not '%c'", op);
+void expect(char* op) {
+  if (token->kind != TK_RESERVED ||
+      strlen(op) != token->len || memcmp(op, token->str, token->len) != 0)
+    error_at(token->str, "It's not '%s'", op);
   token = token->next;
 }
 
@@ -86,10 +98,11 @@ bool at_eof() {
   return token->kind == TK_EOF;
 }
 
-Token* new_token(TokenKind kind, Token* cur, char* str) {
+Token* new_token(TokenKind kind, Token* cur, char* str, int len) {
   Token* tok = calloc(1, sizeof(Token));
   tok->kind = kind;
   tok->str = str;
+  tok->len = len;
   cur->next = tok;
   return tok;
 }
@@ -105,15 +118,21 @@ Token* tokenize(char* p) {
       continue;
     }
 
+    if ((*p == '=' || *p == '!' || *p == '<' || *p == '>') &&
+        *(p + 1) == '=') {
+      cur = new_token(TK_RESERVED, cur, p, 2);
+      p += 2;
+      continue;
+    }
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||
-        *p == '(' || *p == ')') {
-      cur = new_token(TK_RESERVED, cur, p);
+        *p == '(' || *p == ')' || *p == '<' || *p == '>') {
+      cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
     }
 
     if (isdigit(*p)) {
-      cur = new_token(TK_NUM, cur, p);
+      cur = new_token(TK_NUM, cur, p, 0);
       cur->val = strtol(p, &p, 10);
       continue;
     }
@@ -121,7 +140,7 @@ Token* tokenize(char* p) {
     error_at(p, "Can not tokenize");
   }
 
-  new_token(TK_EOF, cur, p);
+  new_token(TK_EOF, cur, p, 0);
   return head.next;
 }
 
@@ -143,9 +162,9 @@ Node* new_node_num(int val) {
 Node* expr();
 
 Node* primary() {
-  if (consume('(')) {
+  if (consume("(")) {
     Node* node = expr();
-    expect(')');
+    expect(")");
     return node;
   }
 
@@ -153,10 +172,10 @@ Node* primary() {
 }
 
 Node* unary() {
-  if (consume('-'))
+  if (consume("-"))
     return new_node(ND_SUB, new_node_num(0), primary());
 
-  consume('+');
+  consume("+");
   return primary();
 }
 
@@ -164,34 +183,78 @@ Node* mul() {
   Node* node = unary();
 
   for (;;) {
-    if (consume('*'))
+    if (consume("*"))
       node = new_node(ND_MUL, node, unary());
-    else if (consume('/'))
+    else if (consume("/"))
       node = new_node(ND_DIV, node, unary());
     else
       return node;
   }
 }
 
-Node* expr() {
+Node* add() {
   Node* node = mul();
 
   for (;;) {
-    if (consume('+'))
+    if (consume("+"))
       node = new_node(ND_ADD, node, mul());
-    else if (consume('-'))
+    else if (consume("-"))
       node = new_node(ND_SUB, node, mul());
     else
       return node;
   }
 }
 
+Node* relational() {
+  Node* node = add();
+
+  for (;;) {
+    if (consume("<="))
+      node = new_node(ND_LE, node, relational());
+    else if (consume("<"))
+      node = new_node(ND_LT, node, relational());
+#if defined(SUPPORT_GREATER)
+    else if (consume(">="))
+      node = new_node(ND_GE, node, relational());
+    else if (consume(">"))
+      node = new_node(ND_GT, node, relational());
+#else
+    else if (consume(">="))
+      node = new_node(ND_LE, relational(), node);
+    else if (consume(">"))
+      node = new_node(ND_LT, relational(), node);
+#endif
+    else
+      return node;
+  }
+}
+
+Node* equality() {
+  Node* node = relational();
+
+  for (;;) {
+    if (consume("=="))
+      node = new_node(ND_EQU, node, relational());
+    else if (consume("!="))
+      node = new_node(ND_NEQ, node, relational());
+    else
+      return node;
+  }
+}
+
+Node* expr() {
+  return equality();
+}
+
 /*
  * EBNF
- * expr    = mul ("+" mul | "-" mul)*
- * mul     = unary ("*" unary | "/" unary)*
- * unary   = ("+" | "-")? primary
- * primary = num | "(" expr ")"
+ * expr       = equality
+ * equality   = relational ("==" relational | "!=" relational)*
+ * relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+ * add        = mul ("+" mul | "-" mul)*
+ * mul        = unary ("*" unary | "/" unary)*
+ * unary      = ("+" | "-")? primary
+ * primary    = num | "(" expr ")"
  */
 
 #if defined(PRINT_TREE)
@@ -201,8 +264,13 @@ void print_tree(Node* node) {
   else {
     fprintf(stderr, " (");
 
-    const char symbol[] = "+-*/";
-    fprintf(stderr, "%c", symbol[node->kind]);
+    const char* symbols[ND_NUM] = {
+      "+", "-", "*", "/", "==", "!=", "<", "<=",
+#if defined(SUPPORT_GREATER)
+      ">", ">=",
+#endif
+    };
+    fprintf(stderr, "%s", symbols[node->kind]);
     print_tree(node->lhs);
     print_tree(node->rhs);
 
@@ -247,6 +315,38 @@ void gen_arm_asm(Node* node) {
     case ND_DIV:
       printf("  bl __aeabi_idiv\n");
       break;
+    case ND_EQU:
+      printf("  cmp r0, r1\n");
+      printf("  moveq r0, #1\n");
+      printf("  movne r0, #0\n");
+      break;
+    case ND_NEQ:
+      printf("  cmp r0, r1\n");
+      printf("  moveq r0, #0\n");
+      printf("  movne r0, #1\n");
+      break;
+    case ND_LT:
+      printf("  cmp r0, r1\n");
+      printf("  movlt r0, #1\n");
+      printf("  movge r0, #0\n");
+      break;
+    case ND_LE:
+      printf("  cmp r0, r1\n");
+      printf("  movle r0, #1\n");
+      printf("  movgt r0, #0\n");
+      break;
+#if defined(SUPPORT_GREATER)
+    case ND_GT:
+      printf("  cmp r0, r1\n");
+      printf("  movgt r0, #1\n");
+      printf("  movle r0, #0\n");
+      break;
+    case ND_GE:
+      printf("  cmp r0, r1\n");
+      printf("  movge r0, #1\n");
+      printf("  movlt r0, #0\n");
+      break;
+#endif
     default:
       error("Invalid op %d", node->kind);
       break;
