@@ -1,6 +1,12 @@
 CFLAGS = -std=c11 -Wall -g -static
 
-9cc: 9cc.c
+SRCS = codegen.c container.c main.c parse.c
+OBJS = $(SRCS:.c=.o)
+
+9cc: $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LDFLAGS)
+
+$(OBJS): 9cc.h
 
 test: 9cc
 	./test.sh

@@ -1,55 +1,4 @@
-#include <ctype.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-//#define PRINT_TREE
-//#define SUPPORT_GREATER
-
-typedef enum {
-  ND_ADD,
-  ND_SUB,
-  ND_MUL,
-  ND_DIV,
-  ND_EQU,
-  ND_NEQ,
-  ND_LT,
-  ND_LE,
-#if defined(SUPPORT_GREATER)
-  ND_GT,
-  ND_GE,
-#endif
-  ND_NUM,
-} NodeKind;
-
-typedef struct Node Node;
-
-struct Node {
-  NodeKind kind;
-  Node* lhs;
-  Node* rhs;
-  int val;
-};
-
-typedef enum {
-  TK_RESERVED,
-  TK_NUM,
-  TK_EOF,
-} TokenKind;
-
-typedef struct Token Token;
-struct Token {
-  TokenKind kind;
-  Token* next;
-  int val;
-  char* str;
-  int len;
-};
-
-char* user_input;
-Token* token;
+#include "9cc.h"
 
 void error(char* fmt, ...) {
   va_list ap;
@@ -70,7 +19,6 @@ void error_at(char* loc, char* fmt, ...) {
   fprintf(stderr, "\n");
   exit(1);
 }
-
 bool consume(char* op) {
   if (token->kind != TK_RESERVED ||
       strlen(op) != token->len || memcmp(op, token->str, token->len) != 0)
@@ -97,6 +45,7 @@ int expect_number() {
 bool at_eof() {
   return token->kind == TK_EOF;
 }
+
 
 Token* new_token(TokenKind kind, Token* cur, char* str, int len) {
   Token* tok = calloc(1, sizeof(Token));
@@ -257,28 +206,6 @@ Node* expr() {
  * primary    = num | "(" expr ")"
  */
 
-#if defined(PRINT_TREE)
-void print_tree(Node* node) {
-  if (node->kind == ND_NUM)
-    fprintf(stderr, " %d", node->val);
-  else {
-    fprintf(stderr, " (");
-
-    const char* symbols[ND_NUM] = {
-      "+", "-", "*", "/", "==", "!=", "<", "<=",
-#if defined(SUPPORT_GREATER)
-      ">", ">=",
-#endif
-    };
-    fprintf(stderr, "%s", symbols[node->kind]);
-    print_tree(node->lhs);
-    print_tree(node->rhs);
-
-    fprintf(stderr, ")");
-  }
-}
-#endif
-
 Node* build() {
   Node* node = expr();
   if (!at_eof())
@@ -288,91 +215,4 @@ Node* build() {
   fprintf(stderr, "\n");
 #endif
   return node;
-}
-
-void gen_arm_asm(Node* node) {
-  if (node->kind == ND_NUM) {
-    printf("  mov r0, #%d\n", node->val);
-    printf("  push {r0}\n");
-    return;
-  }
-
-  gen_arm_asm(node->rhs);
-  gen_arm_asm(node->lhs);
-
-  printf("  pop {r0, r1}\n");
-
-  switch (node->kind) {
-    case ND_ADD:
-      printf("  add r0, r1\n");
-      break;
-    case ND_SUB:
-      printf("  sub r0, r1\n");
-      break;
-    case ND_MUL:
-      printf("  mul r0, r1\n");
-      break;
-    case ND_DIV:
-      printf("  bl __aeabi_idiv\n");
-      break;
-    case ND_EQU:
-      printf("  cmp r0, r1\n");
-      printf("  moveq r0, #1\n");
-      printf("  movne r0, #0\n");
-      break;
-    case ND_NEQ:
-      printf("  cmp r0, r1\n");
-      printf("  moveq r0, #0\n");
-      printf("  movne r0, #1\n");
-      break;
-    case ND_LT:
-      printf("  cmp r0, r1\n");
-      printf("  movlt r0, #1\n");
-      printf("  movge r0, #0\n");
-      break;
-    case ND_LE:
-      printf("  cmp r0, r1\n");
-      printf("  movle r0, #1\n");
-      printf("  movgt r0, #0\n");
-      break;
-#if defined(SUPPORT_GREATER)
-    case ND_GT:
-      printf("  cmp r0, r1\n");
-      printf("  movgt r0, #1\n");
-      printf("  movle r0, #0\n");
-      break;
-    case ND_GE:
-      printf("  cmp r0, r1\n");
-      printf("  movge r0, #1\n");
-      printf("  movlt r0, #0\n");
-      break;
-#endif
-    default:
-      error("Invalid op %d", node->kind);
-      break;
-  }
-
-  printf("  push {r0}\n");
-}
-
-void gen_arm(Node* node) {
-  printf("  .global main\n");
-  printf("main:\n");
-  printf("  push {lr}\n");
-  gen_arm_asm(node);
-  printf("  pop {r0, pc}\n");
-}
-
-int main(int argc, char* argv[]) {
-  if (argc != 2) {
-    fprintf(stderr, "invalid parameter\n");
-    return 1;
-  }
-
-  user_input = argv[1];
-  token = tokenize(user_input);
-  Node* node = build();
-  gen_arm(node);
-
-  return 0;
 }
