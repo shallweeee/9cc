@@ -2,7 +2,7 @@
 
 #define comment printf
 
-int if_count = 0;
+int label_count = 0;
 
 void gen_lval(Node* node) {
   if (node->kind != ND_LVAR)
@@ -39,22 +39,35 @@ void gen_arm_asm(Node* node) {
       return;
     case ND_IF: {
       comment("#if\n");
+      int cur_count = label_count++;
       gen_arm_asm(node->lhs);
       printf("  pop {r0}\n");
       printf("  cmp r0, #0\n");
-      int cur_if_count = if_count++;
       //printf("  pusheq {r0}\n");
       if (node->epart)
-        printf("  beq .Lelse%03d\n", cur_if_count);
+        printf("  beq .Lelse%03d\n", cur_count);
       else
-        printf("  beq .Lend%03d\n", cur_if_count);
+        printf("  beq .Lend%03d\n", cur_count);
       gen_arm_asm(node->rhs);
       if (node->epart) {
-        printf("  b .Lend%03d\n", cur_if_count);
-        printf(".Lelse%03d:\n", cur_if_count);
+        printf("  b .Lend%03d\n", cur_count);
+        printf(".Lelse%03d:\n", cur_count);
         gen_arm_asm(node->epart);
       }
-      printf(".Lend%03d:\n", cur_if_count);
+      printf(".Lend%03d:\n", cur_count);
+      return;
+    }
+    case ND_WHILE: {
+      comment("#while\n");
+      int cur_count = label_count++;
+      printf(".Lwhile%03d:\n", cur_count);
+      gen_arm_asm(node->lhs);
+      printf("  pop {r0}\n");
+      printf("  cmp r0, #0\n");
+      printf("  beq .Lend%03d\n", cur_count);
+      gen_arm_asm(node->rhs);
+      printf("  b .Lwhile%03d\n", cur_count);
+      printf(".Lend%03d:\n", cur_count);
       return;
     }
     default:

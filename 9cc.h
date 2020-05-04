@@ -18,6 +18,7 @@ typedef enum {
   TK_RETURN,
   TK_IF,
   TK_ELSE,
+  TK_WHILE,
   TK_EOF,
 } TokenKind;
 
@@ -47,6 +48,7 @@ typedef enum {
   ND_LVAR,
   ND_RETURN,
   ND_IF,
+  ND_WHILE,
   ND_NUM,
 } NodeKind;
 
