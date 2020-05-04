@@ -13,6 +13,7 @@
 
 typedef enum {
   TK_RESERVED,
+  TK_IDENT,
   TK_NUM,
   TK_EOF,
 } TokenKind;
@@ -39,6 +40,8 @@ typedef enum {
   ND_GT,
   ND_GE,
 #endif
+  ND_ASSIGN,
+  ND_LVAR,
   ND_NUM,
 } NodeKind;
 
@@ -49,16 +52,20 @@ struct Node {
   Node* lhs;
   Node* rhs;
   int val;
+  int offset;
 };
 
 extern char* user_input;
 extern Token* token;
+extern Node* code[100];
 
 // parse.c
-Token* tokenize(char* p);
-Node* build();
+void error(char* fmt, ...);
+
+void tokenize(char* p);
+void program();
 
 // codegen.c
-void gen_arm(Node* node);
+void gen_arm();
 
 #endif

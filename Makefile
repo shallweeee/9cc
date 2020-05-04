@@ -11,6 +11,9 @@ $(OBJS): 9cc.h
 test: 9cc
 	./test.sh
 
+sample: test.c
+	$(CC) -S test.c
+
 clean:
 	rm -f 9cc *.o *~ tmp*
 

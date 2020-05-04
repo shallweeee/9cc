@@ -1,10 +1,34 @@
 #include "9cc.h"
 
+void gen_lval(Node* node) {
+  if (node->kind != ND_LVAR)
+    error("It's not a lvalue");
+
+  printf("  sub r0, fp, #%d\n", node->offset);
+  printf("  push {r0}\n");
+}
+
 void gen_arm_asm(Node* node) {
-  if (node->kind == ND_NUM) {
-    printf("  mov r0, #%d\n", node->val);
-    printf("  push {r0}\n");
-    return;
+  switch (node->kind) {
+    case ND_NUM:
+      printf("  mov r0, #%d\n", node->val);
+      printf("  push {r0}\n");
+      return;
+    case ND_LVAR:
+      gen_lval(node);
+      printf("  pop {r0}\n");
+      printf("  ldr r0, [r0]\n");
+      printf("  push {r0}\n");
+      return;
+    case ND_ASSIGN:
+      gen_lval(node->lhs);
+      gen_arm_asm(node->rhs);
+      printf("  pop {r0, r1}\n");
+      printf("  str r0, [r1]\n");
+      printf("  push {r0}\n");
+      return;
+    default:
+      break;
   }
 
   gen_arm_asm(node->rhs);
@@ -65,10 +89,24 @@ void gen_arm_asm(Node* node) {
   printf("  push {r0}\n");
 }
 
-void gen_arm(Node* node) {
+void gen_arm() {
+  // prologue
   printf("  .global main\n");
   printf("main:\n");
-  printf("  push {lr}\n");
-  gen_arm_asm(node);
-  printf("  pop {r0, pc}\n");
+  printf("  push {fp, lr}\n");
+  printf("  mov fp, sp\n");
+  printf("  sub sp, sp, #108\n");
+  printf("\n");
+
+  // code gen
+  for (int i = 0; code[i]; ++i) {
+    gen_arm_asm(code[i]);
+    printf("  pop {r0}\n");
+    printf("\n");
+  }
+
+  // epilogue
+  printf("\n");
+  printf("  add sp, sp, #108\n");
+  printf("  pop {fp, pc}\n");
 }

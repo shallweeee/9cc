@@ -10,11 +10,12 @@ void print_tree(Node* node) {
   else {
     fprintf(stderr, " (");
 
-    const char* symbols[ND_NUM] = {
+    const char* symbols[ND_LVAL] = {
       "+", "-", "*", "/", "==", "!=", "<", "<=",
 #if defined(SUPPORT_GREATER)
       ">", ">=",
 #endif
+      "=",
     };
     fprintf(stderr, "%s", symbols[node->kind]);
     print_tree(node->lhs);
@@ -32,9 +33,9 @@ int main(int argc, char* argv[]) {
   }
 
   user_input = argv[1];
-  token = tokenize(user_input);
-  Node* node = build();
-  gen_arm(node);
+  tokenize(user_input);
+  program();
+  gen_arm();
 
   return 0;
 }

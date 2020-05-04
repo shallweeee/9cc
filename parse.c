@@ -1,5 +1,7 @@
 #include "9cc.h"
 
+Node* code[100];
+
 void error(char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -19,12 +21,21 @@ void error_at(char* loc, char* fmt, ...) {
   fprintf(stderr, "\n");
   exit(1);
 }
+
 bool consume(char* op) {
   if (token->kind != TK_RESERVED ||
       strlen(op) != token->len || memcmp(op, token->str, token->len) != 0)
     return false;
   token = token->next;
   return true;
+}
+
+Token* consume_ident() {
+  if (token->kind != TK_IDENT || token->str[0] < 'a' || token->str[0] > 'z')
+    return NULL;
+  Token* prev = token;
+  token = token->next;
+  return prev;
 }
 
 void expect(char* op) {
@@ -47,16 +58,15 @@ bool at_eof() {
 }
 
 
-Token* new_token(TokenKind kind, Token* cur, char* str, int len) {
+Token* new_token(TokenKind kind, Token* cur, char* str) {
   Token* tok = calloc(1, sizeof(Token));
   tok->kind = kind;
   tok->str = str;
-  tok->len = len;
   cur->next = tok;
   return tok;
 }
 
-Token* tokenize(char* p) {
+void tokenize(char* p) {
   Token head;
   head.next = NULL;
   Token* cur = &head;
@@ -69,28 +79,37 @@ Token* tokenize(char* p) {
 
     if ((*p == '=' || *p == '!' || *p == '<' || *p == '>') &&
         *(p + 1) == '=') {
-      cur = new_token(TK_RESERVED, cur, p, 2);
-      p += 2;
-      continue;
-    }
-    if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||
-        *p == '(' || *p == ')' || *p == '<' || *p == '>') {
-      cur = new_token(TK_RESERVED, cur, p, 1);
+      cur = new_token(TK_RESERVED, cur, p++);
+      cur->len = 2;
       p++;
       continue;
     }
 
+    if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||
+        *p == '(' || *p == ')' || *p == '<' || *p == '>' ||
+        *p == ';' || *p == '=') {
+      cur = new_token(TK_RESERVED, cur, p++);
+      cur->len = 1;
+      continue;
+    }
+
     if (isdigit(*p)) {
-      cur = new_token(TK_NUM, cur, p, 0);
+      cur = new_token(TK_NUM, cur, p);
       cur->val = strtol(p, &p, 10);
+      continue;
+    }
+
+    if ('a' <= *p && *p <= 'z') {
+      cur = new_token(TK_IDENT, cur, p++);
+      cur->len = 1;
       continue;
     }
 
     error_at(p, "Can not tokenize");
   }
 
-  new_token(TK_EOF, cur, p, 0);
-  return head.next;
+  new_token(TK_EOF, cur, p);
+  token = head.next;
 }
 
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
@@ -110,12 +129,27 @@ Node* new_node_num(int val) {
 
 Node* expr();
 
+Node* new_node_ident() {
+  Token* tok = consume_ident();
+  if (!tok)
+    return NULL;
+
+  Node* node = calloc(1, sizeof(Node));
+  node->kind = ND_LVAR;
+  node->offset = (tok->str[0] - 'a' + 1) * 4;
+  return node;
+}
+
 Node* primary() {
   if (consume("(")) {
     Node* node = expr();
     expect(")");
     return node;
   }
+
+  Node* node = new_node_ident();
+  if (node)
+    return node;
 
   return new_node_num(expect_number());
 }
@@ -191,28 +225,40 @@ Node* equality() {
   }
 }
 
+Node* assign() {
+  Node* node = equality();
+  if (consume("="))
+    node = new_node(ND_ASSIGN, node, assign());
+  return node;
+}
+
 Node* expr() {
-  return equality();
+  return assign();
+}
+
+Node* stmt() {
+  Node* node = expr();
+  expect(";");
+  return node;
+}
+
+void program() {
+  int i = 0;
+  while (!at_eof())
+    code[i++] = stmt();
+  code[i] = NULL;
 }
 
 /*
  * EBNF
- * expr       = equality
+ * program    = stmt*
+ * stmt       = expr ";"
+ * expr       = assign
+ * assign     = equality ("=" assign)?
  * equality   = relational ("==" relational | "!=" relational)*
  * relational = add ("<" add | "<=" add | ">" add | ">=" add)*
  * add        = mul ("+" mul | "-" mul)*
  * mul        = unary ("*" unary | "/" unary)*
  * unary      = ("+" | "-")? primary
- * primary    = num | "(" expr ")"
+ * primary    = num | ident | "(" expr ")"
  */
-
-Node* build() {
-  Node* node = expr();
-  if (!at_eof())
-    error("not ended");
-#if defined(PRINT_TREE)
-  print_tree(node);
-  fprintf(stderr, "\n");
-#endif
-  return node;
-}
