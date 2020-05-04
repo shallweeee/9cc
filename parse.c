@@ -91,6 +91,13 @@ Token* new_token(TokenKind kind, Token* cur, char* str) {
   return tok;
 }
 
+#define CHECK_KEYWORD(keyword, len, kind); \
+    if (strncmp(p, keyword, len) == 0 && !is_alnum(p[len])) { \
+      cur = new_token(kind, cur, p); \
+      p += len; \
+      continue; \
+    }
+
 void tokenize(char* p) {
   Token head;
   head.next = NULL;
@@ -124,11 +131,9 @@ void tokenize(char* p) {
       continue;
     }
 
-    if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
-      cur = new_token(TK_RETURN, cur, p);
-      p += 6;
-      continue;
-    }
+    CHECK_KEYWORD("return", 6, TK_RETURN);
+    CHECK_KEYWORD("if", 2, TK_IF);
+    CHECK_KEYWORD("else", 4, TK_ELSE);
 
     if (isalpha(*p) || *p == '_') {
       cur = new_token(TK_IDENT, cur, p++);
@@ -276,11 +281,22 @@ Node* expr() {
 Node* stmt() {
   Node* node;
 
-  if (consume_kind(TK_RETURN))
+  if (consume_kind(TK_RETURN)) {
     node = new_node(ND_RETURN, NULL, expr());
-  else
+    expect(";");
+  } else if (consume_kind(TK_IF)) {
+    expect("(");
+    Node* if_expr = expr();
+    expect(")");
+    node = new_node(ND_IF, if_expr, stmt());
+    if (consume_kind(TK_ELSE)) {
+      node->epart = stmt();
+    }
+    return node;
+  } else {
     node = expr();
-  expect(";");
+    expect(";");
+  }
   return node;
 }
 
@@ -295,6 +311,7 @@ void program() {
  * EBNF
  * program    = stmt*
  * stmt       = expr ";" | "return" expr ";"
+                | "if" "(" expr ")" stmt ("else" stmt)?
  * expr       = assign
  * assign     = equality ("=" assign)?
  * equality   = relational ("==" relational | "!=" relational)*

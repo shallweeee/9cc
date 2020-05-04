@@ -1,5 +1,9 @@
 #include "9cc.h"
 
+#define comment printf
+
+int if_count = 0;
+
 void gen_lval(Node* node) {
   if (node->kind != ND_LVAR)
     error("It's not a lvalue");
@@ -33,6 +37,26 @@ void gen_arm_asm(Node* node) {
       printf("  mov sp, fp\n");
       printf("  pop {fp, pc}\n");
       return;
+    case ND_IF: {
+      comment("#if\n");
+      gen_arm_asm(node->lhs);
+      printf("  pop {r0}\n");
+      printf("  cmp r0, #0\n");
+      int cur_if_count = if_count++;
+      //printf("  pusheq {r0}\n");
+      if (node->epart)
+        printf("  beq .Lelse%03d\n", cur_if_count);
+      else
+        printf("  beq .Lend%03d\n", cur_if_count);
+      gen_arm_asm(node->rhs);
+      if (node->epart) {
+        printf("  b .Lend%03d\n", cur_if_count);
+        printf(".Lelse%03d:\n", cur_if_count);
+        gen_arm_asm(node->epart);
+      }
+      printf(".Lend%03d:\n", cur_if_count);
+      return;
+    }
     default:
       break;
   }

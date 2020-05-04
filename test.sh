@@ -33,5 +33,7 @@ assert 0 '(3!=1+2) + (3==1+3) + (3<=2) + (3<1) + (3>=4) + (3>5);'
 assert 12 'a = 1; b = 2; z = a + b; z * 4;'
 assert 12 'foo = 1; bar = 2; foobar = foo + bar; foobar * 4;'
 assert 12 'foo = 1; bar = 2; foobar = foo + bar; return foobar * 4;'
+assert 2 'foo = 1; if (foo == 1) foo = 2; else foo = 3;'
+assert 3 'foo = 2; if (foo == 1) foo = 2; else foo = 3;'
 
 echo OK
