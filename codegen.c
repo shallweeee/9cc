@@ -27,6 +27,12 @@ void gen_arm_asm(Node* node) {
       printf("  str r0, [r1]\n");
       printf("  push {r0}\n");
       return;
+    case ND_RETURN:
+      gen_arm_asm(node->rhs);
+      printf("  pop {r0}\n");
+      printf("  mov sp, fp\n");
+      printf("  pop {fp, pc}\n");
+      return;
     default:
       break;
   }

@@ -3,6 +3,13 @@
 Node* code[100];
 LVar* locals;
 
+int is_alnum(char c) {
+  return ('a' <= c && c <= 'z') ||
+         ('A' <= c && c <= 'Z') ||
+         ('0' <= c && c <= '9') ||
+         ( c == '_');
+}
+
 void error(char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -48,13 +55,13 @@ bool consume(char* op) {
   return true;
 }
 
-Token* consume_ident() {
-  if (token->kind != TK_IDENT || token->str[0] < 'a' || token->str[0] > 'z')
+Token* consume_kind(TokenKind kind) {
+  if (token->kind != kind)
     return NULL;
-  Token* prev = token;
+  Token* cur = token;
   token = token->next;
-  return prev;
-}
+  return cur;
+};
 
 void expect(char* op) {
   if (token->kind != TK_RESERVED ||
@@ -117,9 +124,15 @@ void tokenize(char* p) {
       continue;
     }
 
+    if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+      cur = new_token(TK_RETURN, cur, p);
+      p += 6;
+      continue;
+    }
+
     if (isalpha(*p) || *p == '_') {
       cur = new_token(TK_IDENT, cur, p++);
-      while (isalnum(*p) || *p == '_')
+      while (is_alnum(*p))
         p++;
       cur->len = p - cur->str;
       continue;
@@ -150,7 +163,7 @@ Node* new_node_num(int val) {
 Node* expr();
 
 Node* new_node_ident() {
-  Token* tok = consume_ident();
+  Token* tok = consume_kind(TK_IDENT);
   if (!tok)
     return NULL;
 
@@ -261,7 +274,12 @@ Node* expr() {
 }
 
 Node* stmt() {
-  Node* node = expr();
+  Node* node;
+
+  if (consume_kind(TK_RETURN))
+    node = new_node(ND_RETURN, NULL, expr());
+  else
+    node = expr();
   expect(";");
   return node;
 }
@@ -276,7 +294,7 @@ void program() {
 /*
  * EBNF
  * program    = stmt*
- * stmt       = expr ";"
+ * stmt       = expr ";" | "return" expr ";"
  * expr       = assign
  * assign     = equality ("=" assign)?
  * equality   = relational ("==" relational | "!=" relational)*
