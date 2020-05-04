@@ -1,6 +1,7 @@
 #include "9cc.h"
 
 Node* code[100];
+LVar* locals;
 
 void error(char* fmt, ...) {
   va_list ap;
@@ -20,6 +21,23 @@ void error_at(char* loc, char* fmt, ...) {
   vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
   exit(1);
+}
+
+LVar* find_lvar(Token* tok) {
+  for (LVar* var = locals; var; var = var->next)
+    if (var->len == tok->len && !memcmp(var->name, tok->str, tok->len))
+      return var;
+  return NULL;
+}
+
+LVar* new_lvar(Token* tok) {
+  LVar* lvar = calloc(1, sizeof(LVar));
+  lvar->next = locals;
+  lvar->name = tok->str;
+  lvar->len = tok->len;
+  lvar->offset = locals ? locals->offset + 4 : 4;
+  locals = lvar;
+  return lvar;
 }
 
 bool consume(char* op) {
@@ -99,9 +117,11 @@ void tokenize(char* p) {
       continue;
     }
 
-    if ('a' <= *p && *p <= 'z') {
+    if (isalpha(*p) || *p == '_') {
       cur = new_token(TK_IDENT, cur, p++);
-      cur->len = 1;
+      while (isalnum(*p) || *p == '_')
+        p++;
+      cur->len = p - cur->str;
       continue;
     }
 
@@ -134,9 +154,13 @@ Node* new_node_ident() {
   if (!tok)
     return NULL;
 
+  LVar* lvar = find_lvar(tok);
+  if (!lvar)
+    lvar = new_lvar(tok);
+
   Node* node = calloc(1, sizeof(Node));
   node->kind = ND_LVAR;
-  node->offset = (tok->str[0] - 'a' + 1) * 4;
+  node->offset = lvar->offset;
   return node;
 }
 

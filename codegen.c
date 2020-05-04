@@ -95,7 +95,8 @@ void gen_arm() {
   printf("main:\n");
   printf("  push {fp, lr}\n");
   printf("  mov fp, sp\n");
-  printf("  sub sp, sp, #108\n");
+  if (locals)
+    printf("  sub sp, sp, #%d\n", locals->offset);
   printf("\n");
 
   // code gen
@@ -107,6 +108,7 @@ void gen_arm() {
 
   // epilogue
   printf("\n");
-  printf("  add sp, sp, #108\n");
+  if (locals)
+    printf("  add sp, sp, #%d\n", locals->offset);
   printf("  pop {fp, pc}\n");
 }

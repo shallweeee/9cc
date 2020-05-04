@@ -55,9 +55,19 @@ struct Node {
   int offset;
 };
 
+typedef struct LVar LVar;
+
+struct LVar {
+  LVar* next;
+  char* name;
+  int len;
+  int offset;
+};
+
 extern char* user_input;
 extern Token* token;
 extern Node* code[100];
+extern LVar* locals;
 
 // parse.c
 void error(char* fmt, ...);

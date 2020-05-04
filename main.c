@@ -10,7 +10,7 @@ void print_tree(Node* node) {
   else {
     fprintf(stderr, " (");
 
-    const char* symbols[ND_LVAL] = {
+    const char* symbols[ND_LVAR] = {
       "+", "-", "*", "/", "==", "!=", "<", "<=",
 #if defined(SUPPORT_GREATER)
       ">", ">=",
