@@ -135,6 +135,7 @@ void tokenize(char* p) {
     CHECK_KEYWORD("if", 2, TK_IF);
     CHECK_KEYWORD("else", 4, TK_ELSE);
     CHECK_KEYWORD("while", 5, TK_WHILE);
+    CHECK_KEYWORD("for", 3, TK_FOR);
 
     if (isalpha(*p) || *p == '_') {
       cur = new_token(TK_IDENT, cur, p++);
@@ -299,6 +300,23 @@ Node* stmt() {
     Node* while_expr = expr();
     expect(")");
     return new_node(ND_WHILE, while_expr, stmt());
+  } else if (consume_kind(TK_FOR)) {
+    Node* node = new_node(ND_FOR, NULL, NULL);
+    expect("(");
+    if (!consume(";")) {
+      node->ipart = expr();
+      expect(";");
+    }
+    if (!consume(";")) {
+      node->lhs = expr();
+      expect(";");
+    }
+    if (!consume(")")) {
+      node->epart = expr();
+      expect(")");
+    }
+    node->rhs = stmt();
+    return node;
   } else {
     node = expr();
     expect(";");
@@ -319,6 +337,7 @@ void program() {
  * stmt       = expr ";" | "return" expr ";"
                 | "if" "(" expr ")" stmt ("else" stmt)?
                 | "while" "(" expr ")" stmt
+                | "for" "(" expr? ";" expr? ";" expr? ")" stmt
  * expr       = assign
  * assign     = equality ("=" assign)?
  * equality   = relational ("==" relational | "!=" relational)*

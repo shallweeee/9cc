@@ -70,6 +70,29 @@ void gen_arm_asm(Node* node) {
       printf(".Lend%03d:\n", cur_count);
       return;
     }
+    case ND_FOR: {
+      comment("#for\n");
+      int cur_count = label_count++;
+      if (node->ipart) {
+        gen_arm_asm(node->ipart);
+        printf("  pop {r0}\n");
+      }
+      printf(".Lfor%03d:\n", cur_count);
+      if (node->lhs) {
+        gen_arm_asm(node->lhs);
+        printf("  pop {r0}\n");
+        printf("  cmp r0, #0\n");
+        printf("  beq .Lend%03d\n", cur_count);
+      }
+      gen_arm_asm(node->rhs);
+      if (node->epart) {
+        gen_arm_asm(node->epart);
+        printf("  pop {r0}\n");
+      }
+      printf("  b .Lfor%03d\n", cur_count);
+      printf(".Lend%03d:\n", cur_count);
+      return;
+    }
     default:
       break;
   }

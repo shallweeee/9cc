@@ -36,5 +36,6 @@ assert 12 'foo = 1; bar = 2; foobar = foo + bar; return foobar * 4;'
 assert 2 'foo = 1; if (foo == 1) foo = 2; else foo = 3;'
 assert 3 'foo = 2; if (foo == 1) foo = 2; else foo = 3;'
 assert 10 'foo = 0; while (foo < 10) foo = foo + 1; return foo;'
+assert 55 'foo = 0; for (count = 1; count <= 10; count = count + 1) foo = foo + count; return foo;'
 
 echo OK
