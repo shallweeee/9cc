@@ -51,6 +51,7 @@ typedef enum {
   ND_IF,
   ND_WHILE,
   ND_FOR,
+  ND_BLOCK,
   ND_NUM,
 } NodeKind;
 
@@ -58,10 +59,11 @@ typedef struct Node Node;
 
 struct Node {
   NodeKind kind;
-  Node* lhs;
-  Node* rhs;
-  Node* epart;
-  Node* ipart;
+  Node* lhs;   // lhs or condition
+  Node* rhs;   // rhs or body
+  Node* epart; // else or for update
+  Node* ipart; // for initial
+  Node** array; // for block
   int val;
   int offset;
 };

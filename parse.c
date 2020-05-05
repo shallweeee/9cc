@@ -119,7 +119,7 @@ void tokenize(char* p) {
 
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||
         *p == '(' || *p == ')' || *p == '<' || *p == '>' ||
-        *p == ';' || *p == '=') {
+        *p == ';' || *p == '=' || *p == '{' || *p == '}') {
       cur = new_token(TK_RESERVED, cur, p++);
       cur->len = 1;
       continue;
@@ -317,6 +317,12 @@ Node* stmt() {
     }
     node->rhs = stmt();
     return node;
+  } else if (consume("{")) {
+    node = new_node(ND_BLOCK, NULL, NULL);
+    while (!consume("}")) {
+      node->array = realloc(node->array, 4 * (node->val + 1)); // sizeof(Node*)
+      node->array[node->val++] = stmt();
+    }
   } else {
     node = expr();
     expect(";");
@@ -334,7 +340,9 @@ void program() {
 /*
  * EBNF
  * program    = stmt*
- * stmt       = expr ";" | "return" expr ";"
+ * stmt       = expr ";"
+                | "{" stmt* "}"
+                | "return" expr ";"
                 | "if" "(" expr ")" stmt ("else" stmt)?
                 | "while" "(" expr ")" stmt
                 | "for" "(" expr? ";" expr? ";" expr? ")" stmt

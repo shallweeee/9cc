@@ -43,18 +43,20 @@ void gen_arm_asm(Node* node) {
       gen_arm_asm(node->lhs);
       printf("  pop {r0}\n");
       printf("  cmp r0, #0\n");
-      //printf("  pusheq {r0}\n");
       if (node->epart)
         printf("  beq .Lelse%03d\n", cur_count);
       else
         printf("  beq .Lend%03d\n", cur_count);
       gen_arm_asm(node->rhs);
+      printf("  pop {r0}\n");
       if (node->epart) {
         printf("  b .Lend%03d\n", cur_count);
         printf(".Lelse%03d:\n", cur_count);
         gen_arm_asm(node->epart);
+        printf("  pop {r0}\n");
       }
       printf(".Lend%03d:\n", cur_count);
+      printf("  push {r0}\n");
       return;
     }
     case ND_WHILE: {
@@ -66,8 +68,10 @@ void gen_arm_asm(Node* node) {
       printf("  cmp r0, #0\n");
       printf("  beq .Lend%03d\n", cur_count);
       gen_arm_asm(node->rhs);
+      printf("  pop {r0}\n");
       printf("  b .Lwhile%03d\n", cur_count);
       printf(".Lend%03d:\n", cur_count);
+      printf("  push {r0}\n");
       return;
     }
     case ND_FOR: {
@@ -85,14 +89,25 @@ void gen_arm_asm(Node* node) {
         printf("  beq .Lend%03d\n", cur_count);
       }
       gen_arm_asm(node->rhs);
+      printf("  pop {r0}\n");
       if (node->epart) {
         gen_arm_asm(node->epart);
         printf("  pop {r0}\n");
       }
       printf("  b .Lfor%03d\n", cur_count);
       printf(".Lend%03d:\n", cur_count);
+      printf("  push {r0}\n");
       return;
     }
+    case ND_BLOCK:
+      comment("#block\n");
+      for (int i = 0; i < node->val; ++i) {
+        comment("#stmt %d\n", i);
+        gen_arm_asm(node->array[i]);
+        printf("  pop {r0}\n");
+      }
+      printf("  push {r0}\n");
+      return;
     default:
       break;
   }
