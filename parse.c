@@ -42,7 +42,7 @@ LVar* new_lvar(Token* tok) {
   lvar->next = locals;
   lvar->name = tok->str;
   lvar->len = tok->len;
-  lvar->offset = locals ? locals->offset + 4 : 4;
+  lvar->offset = locals ? locals->offset + PTRSIZE : PTRSIZE;
   locals = lvar;
   return lvar;
 }
@@ -119,7 +119,8 @@ void tokenize(char* p) {
 
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||
         *p == '(' || *p == ')' || *p == '<' || *p == '>' ||
-        *p == ';' || *p == '=' || *p == '{' || *p == '}') {
+        *p == ';' || *p == '=' || *p == '{' || *p == '}' ||
+        *p == ',') {
       cur = new_token(TK_RESERVED, cur, p++);
       cur->len = 1;
       continue;
@@ -173,6 +174,20 @@ Node* new_node_ident() {
   Token* tok = consume_kind(TK_IDENT);
   if (!tok)
     return NULL;
+
+  if (consume("(")) {
+    Node* node = calloc(1, sizeof(Node));
+    node->kind = ND_CALL;
+    node->token = tok;
+    if (!consume(")")) {
+      do {
+        node->array = realloc(node->array, PTRSIZE * (node->val + 1)); // sizeof(Node*)
+        node->array[node->val++] = expr();
+      } while (consume(","));
+      expect(")");
+    }
+    return node;
+  }
 
   LVar* lvar = find_lvar(tok);
   if (!lvar)
@@ -320,7 +335,7 @@ Node* stmt() {
   } else if (consume("{")) {
     node = new_node(ND_BLOCK, NULL, NULL);
     while (!consume("}")) {
-      node->array = realloc(node->array, 4 * (node->val + 1)); // sizeof(Node*)
+      node->array = realloc(node->array, PTRSIZE * (node->val + 1)); // sizeof(Node*)
       node->array[node->val++] = stmt();
     }
   } else {
@@ -353,5 +368,5 @@ void program() {
  * add        = mul ("+" mul | "-" mul)*
  * mul        = unary ("*" unary | "/" unary)*
  * unary      = ("+" | "-")? primary
- * primary    = num | ident | "(" expr ")"
+ * primary    = num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
  */

@@ -111,6 +111,25 @@ void gen_arm_asm(Node* node) {
       }
       printf("  push {r0}\n");
       return;
+    case ND_CALL:
+      if (node->val > 0) {
+        for (int i = 0; i < node->val; ++i) {
+          gen_arm_asm(node->array[node->val - 1 - i]);
+        }
+        if (node->val == 1)
+          printf("  pop {r0}\n");
+        else if (node->val == 2)
+          printf("  pop {r0-r1}\n");
+        else if (node->val == 3)
+          printf("  pop {r0-r2}\n");
+        else
+          printf("  pop {r0-r3}\n");
+      }
+      printf("  bl %.*s\n", node->token->len, node->token->str);
+      if (node->val > 4)
+        printf("  add sp, sp, #%d\n", PTRSIZE * (node->val - 4));
+      printf("  push {r0}\n");
+      return;
     default:
       break;
   }

@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define PTRSIZE 4
+
 //#define PRINT_TREE
 //#define SUPPORT_GREATER
 
@@ -52,6 +54,7 @@ typedef enum {
   ND_WHILE,
   ND_FOR,
   ND_BLOCK,
+  ND_CALL,
   ND_NUM,
 } NodeKind;
 
@@ -64,6 +67,7 @@ struct Node {
   Node* epart; // else or for update
   Node* ipart; // for initial
   Node** array; // for block
+  Token* token;
   int val;
   int offset;
 };
