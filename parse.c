@@ -299,8 +299,12 @@ Node* stmt() {
   Node* node;
 
   if (consume_kind(TK_RETURN)) {
-    node = new_node(ND_RETURN, NULL, expr());
-    expect(";");
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_RETURN;
+    if (!consume(";")) {
+      node->rhs = expr();
+      expect(";");
+    }
   } else if (consume_kind(TK_IF)) {
     expect("(");
     Node* if_expr = expr();
@@ -357,7 +361,7 @@ void program() {
  * program    = stmt*
  * stmt       = expr ";"
                 | "{" stmt* "}"
-                | "return" expr ";"
+                | "return" expr? ";"
                 | "if" "(" expr ")" stmt ("else" stmt)?
                 | "while" "(" expr ")" stmt
                 | "for" "(" expr? ";" expr? ";" expr? ")" stmt

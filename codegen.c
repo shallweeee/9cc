@@ -35,8 +35,10 @@ void gen_arm_asm(Node* node) {
       printf("  push {r0}\n");
       return;
     case ND_RETURN:
-      gen_arm_asm(node->rhs);
-      printf("  pop {r0}\n");
+      if (node->rhs) {
+        gen_arm_asm(node->rhs);
+        printf("  pop {r0}\n");
+      }
       printf("  mov sp, fp\n");
       printf("  pop {fp, pc}\n");
       return;
@@ -107,9 +109,9 @@ void gen_arm_asm(Node* node) {
       for (int i = 0; i < node->val; ++i) {
         comment("#stmt %d\n", i);
         gen_arm_asm(node->array[i]);
-        printf("  pop {r0}\n");
+        del_dummy();
       }
-      printf("  push {r0}\n");
+      add_dummy();
       return;
     case ND_CALL:
       if (node->val > 0) {
