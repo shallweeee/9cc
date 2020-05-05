@@ -48,16 +48,16 @@ void gen_arm_asm(Node* node) {
       gen_arm_asm(node->lhs);
       printf("  pop {r0}\n");
       printf("  cmp r0, #0\n");
-      if (node->epart)
+      if (node->array)
         printf("  beq .Lelse%03d\n", cur_count);
       else
         printf("  beq .Lend%03d\n", cur_count);
       gen_arm_asm(node->rhs);
       del_dummy();
-      if (node->epart) {
+      if (node->array) {
         printf("  b .Lend%03d\n", cur_count);
         printf(".Lelse%03d:\n", cur_count);
-        gen_arm_asm(node->epart);
+        gen_arm_asm(node->array[0]);
         del_dummy();
       }
       printf(".Lend%03d:\n", cur_count);
@@ -82,8 +82,8 @@ void gen_arm_asm(Node* node) {
     case ND_FOR: {
       comment("#for\n");
       int cur_count = label_count++;
-      if (node->ipart) {
-        gen_arm_asm(node->ipart);
+      if (node->array[0]) {
+        gen_arm_asm(node->array[0]);
         del_dummy();
       }
       printf(".Lfor%03d:\n", cur_count);
@@ -95,8 +95,8 @@ void gen_arm_asm(Node* node) {
       }
       gen_arm_asm(node->rhs);
       del_dummy();
-      if (node->epart) {
-        gen_arm_asm(node->epart);
+      if (node->array[1]) {
+        gen_arm_asm(node->array[1]);
         del_dummy();
       }
       printf("  b .Lfor%03d\n", cur_count);

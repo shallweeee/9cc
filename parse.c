@@ -311,7 +311,8 @@ Node* stmt() {
     expect(")");
     node = new_node(ND_IF, if_expr, stmt());
     if (consume_kind(TK_ELSE)) {
-      node->epart = stmt();
+      node->array = calloc(1, PTRSIZE);
+      node->array[0] = stmt();
     }
     return node;
   } else if (consume_kind(TK_WHILE)) {
@@ -320,10 +321,12 @@ Node* stmt() {
     expect(")");
     return new_node(ND_WHILE, while_expr, stmt());
   } else if (consume_kind(TK_FOR)) {
-    Node* node = new_node(ND_FOR, NULL, NULL);
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_FOR;
+    node->array = calloc(2, PTRSIZE);
     expect("(");
     if (!consume(";")) {
-      node->ipart = expr();
+      node->array[0] = expr();
       expect(";");
     }
     if (!consume(";")) {
@@ -331,7 +334,7 @@ Node* stmt() {
       expect(";");
     }
     if (!consume(")")) {
-      node->epart = expr();
+      node->array[1] = expr();
       expect(")");
     }
     node->rhs = stmt();

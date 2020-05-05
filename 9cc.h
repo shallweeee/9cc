@@ -62,11 +62,9 @@ typedef struct Node Node;
 
 struct Node {
   NodeKind kind;
-  Node* lhs;   // lhs or condition
-  Node* rhs;   // rhs or body
-  Node* epart; // else or for update
-  Node* ipart; // for initial
-  Node** array; // for block
+  Node* lhs;
+  Node* rhs;
+  Node** array;
   Token* token;
   int val;
   int offset;
