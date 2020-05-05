@@ -1,6 +1,9 @@
 #include "9cc.h"
 
 #define comment printf
+#define SEPARATOR printf("\n")
+#define add_dummy() printf("  push {r0}\n")
+#define del_dummy() printf("  pop {r0}\n")
 
 int label_count = 0;
 
@@ -48,15 +51,15 @@ void gen_arm_asm(Node* node) {
       else
         printf("  beq .Lend%03d\n", cur_count);
       gen_arm_asm(node->rhs);
-      printf("  pop {r0}\n");
+      del_dummy();
       if (node->epart) {
         printf("  b .Lend%03d\n", cur_count);
         printf(".Lelse%03d:\n", cur_count);
         gen_arm_asm(node->epart);
-        printf("  pop {r0}\n");
+        del_dummy();
       }
       printf(".Lend%03d:\n", cur_count);
-      printf("  push {r0}\n");
+      add_dummy();
       return;
     }
     case ND_WHILE: {
@@ -68,10 +71,10 @@ void gen_arm_asm(Node* node) {
       printf("  cmp r0, #0\n");
       printf("  beq .Lend%03d\n", cur_count);
       gen_arm_asm(node->rhs);
-      printf("  pop {r0}\n");
+      del_dummy();
       printf("  b .Lwhile%03d\n", cur_count);
       printf(".Lend%03d:\n", cur_count);
-      printf("  push {r0}\n");
+      add_dummy();
       return;
     }
     case ND_FOR: {
@@ -79,7 +82,7 @@ void gen_arm_asm(Node* node) {
       int cur_count = label_count++;
       if (node->ipart) {
         gen_arm_asm(node->ipart);
-        printf("  pop {r0}\n");
+        del_dummy();
       }
       printf(".Lfor%03d:\n", cur_count);
       if (node->lhs) {
@@ -89,14 +92,14 @@ void gen_arm_asm(Node* node) {
         printf("  beq .Lend%03d\n", cur_count);
       }
       gen_arm_asm(node->rhs);
-      printf("  pop {r0}\n");
+      del_dummy();
       if (node->epart) {
         gen_arm_asm(node->epart);
-        printf("  pop {r0}\n");
+        del_dummy();
       }
       printf("  b .Lfor%03d\n", cur_count);
       printf(".Lend%03d:\n", cur_count);
-      printf("  push {r0}\n");
+      add_dummy();
       return;
     }
     case ND_BLOCK:
@@ -178,17 +181,17 @@ void gen_arm() {
   printf("  mov fp, sp\n");
   if (locals)
     printf("  sub sp, sp, #%d\n", locals->offset);
-  printf("\n");
+  SEPARATOR;
 
   // code gen
   for (int i = 0; code[i]; ++i) {
     gen_arm_asm(code[i]);
     printf("  pop {r0}\n");
-    printf("\n");
+    SEPARATOR;
   }
 
   // epilogue
-  printf("\n");
+  SEPARATOR;
   if (locals)
     printf("  add sp, sp, #%d\n", locals->offset);
   printf("  pop {fp, pc}\n");
