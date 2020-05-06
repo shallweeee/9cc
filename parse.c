@@ -188,6 +188,19 @@ void add_param() {
   new_lvar(tok);
 }
 
+void optimize_param(Node* node) {
+  node->params = locals_offset / PTRSIZE;
+  if (node->params <= REG_PARAMS)
+    return;
+
+  LVar* param = locals;
+  while (param->offset > PTRSIZE * REG_PARAMS) {
+    param->offset = PTRSIZE * 3 - param->offset; // push fp, pc
+    param = param->next;
+  }
+  locals_offset = PTRSIZE * REG_PARAMS;
+}
+
 Node* new_node_ident() {
   Token* tok = consume_kind(TK_IDENT);
   if (!tok)
@@ -395,7 +408,7 @@ Node* func() {
       } while (consume(","));
       expect(")");
     }
-    node->params = locals_offset / PTRSIZE;
+    optimize_param(node);
 
     // body
     expect("{");

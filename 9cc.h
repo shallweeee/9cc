@@ -9,6 +9,7 @@
 #include <string.h>
 
 #define PTRSIZE 4
+#define REG_PARAMS 4
 
 //#define PRINT_TREE
 //#define SUPPORT_GREATER

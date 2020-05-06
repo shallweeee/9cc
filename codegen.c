@@ -20,15 +20,13 @@ void prologue(Node* node) {
   printf("%.*s:\n", node->token->len, node->token->str);
   printf("  push {fp, lr}\n");
   printf("  mov fp, sp\n");
-  if (node->locals)
-    printf("  sub sp, sp, #%d\n", node->locals->offset);
-  int rparams = node->params > 4 ? 4 : node->params;
+  if (node->locals) {
+    int size = (node->locals->offset > 0) ? node->locals->offset : PTRSIZE * REG_PARAMS;
+    printf("  sub sp, sp, #%d\n", size);
+  }
+  int rparams = node->params > REG_PARAMS ? REG_PARAMS : node->params;
   for (int i = 0; i < rparams; i++)
     printf("  str r%d, [fp, #-%d]\n", i, PTRSIZE * (i + 1));
-  for (int i = rparams; i < node->params; i++) {
-    printf("  ldr r0, [fp, #%d]\n", PTRSIZE * (i - rparams + 2));
-    printf("  str r0, [fp, #-%d]\n", PTRSIZE * (i + 1));
-  }
   SEPARATOR;
 }
 
@@ -164,8 +162,8 @@ void gen_arm_asm(Node* node) {
           printf("  pop {r0-r3}\n");
       }
       printf("  bl %.*s\n", node->token->len, node->token->str);
-      if (node->val > 4)
-        printf("  add sp, sp, #%d\n", PTRSIZE * (node->val - 4));
+      if (node->val > REG_PARAMS)
+        printf("  add sp, sp, #%d\n", PTRSIZE * (node->val - REG_PARAMS));
       printf("  push {r0}\n");
       return;
     default:
