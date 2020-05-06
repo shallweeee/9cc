@@ -15,8 +15,44 @@ void gen_lval(Node* node) {
   printf("  push {r0}\n");
 }
 
+void prologue(Node* node) {
+  printf("  .global %.*s\n", node->token->len, node->token->str);
+  printf("%.*s:\n", node->token->len, node->token->str);
+  printf("  push {fp, lr}\n");
+  printf("  mov fp, sp\n");
+  if (node->locals)
+    printf("  sub sp, sp, #%d\n", node->locals->offset);
+  int rparams = node->params > 4 ? 4 : node->params;
+  for (int i = 0; i < rparams; i++)
+    printf("  str r%d, [fp, #-%d]\n", i, PTRSIZE * (i + 1));
+  for (int i = rparams; i < node->params; i++) {
+    printf("  ldr r0, [fp, #%d]\n", PTRSIZE * (i - rparams + 2));
+    printf("  str r0, [fp, #-%d]\n", PTRSIZE * (i + 1));
+  }
+  SEPARATOR;
+}
+
+void epilogue(Node* node) {
+  printf("  mov sp, fp\n");
+  printf("  pop {fp, pc}\n");
+}
+
 void gen_arm_asm(Node* node) {
   switch (node->kind) {
+    case ND_FUNC:
+      prologue(node);
+
+      for (int i = 0; i < node->val; ++i) {
+        //comment("#stmt %d\n", i);
+        gen_arm_asm(node->array[i]);
+        del_dummy();
+        SEPARATOR;
+      }
+
+      if (node->val == 0 || node->array[node->val - 1]->kind != ND_RETURN)
+        epilogue(node);
+      SEPARATOR;
+      return;
     case ND_NUM:
       printf("  mov r0, #%d\n", node->val);
       printf("  push {r0}\n");
@@ -195,25 +231,8 @@ void gen_arm_asm(Node* node) {
 }
 
 void gen_arm() {
-  // prologue
-  printf("  .global main\n");
-  printf("main:\n");
-  printf("  push {fp, lr}\n");
-  printf("  mov fp, sp\n");
-  if (locals)
-    printf("  sub sp, sp, #%d\n", locals->offset);
-  SEPARATOR;
-
   // code gen
   for (int i = 0; code[i]; ++i) {
     gen_arm_asm(code[i]);
-    printf("  pop {r0}\n");
-    SEPARATOR;
   }
-
-  // epilogue
-  SEPARATOR;
-  if (locals)
-    printf("  add sp, sp, #%d\n", locals->offset);
-  printf("  pop {fp, pc}\n");
 }

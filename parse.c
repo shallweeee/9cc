@@ -2,6 +2,7 @@
 
 Node* code[100];
 LVar* locals;
+int locals_offset;
 
 int is_alnum(char c) {
   return ('a' <= c && c <= 'z') ||
@@ -42,7 +43,7 @@ LVar* new_lvar(Token* tok) {
   lvar->next = locals;
   lvar->name = tok->str;
   lvar->len = tok->len;
-  lvar->offset = locals ? locals->offset + PTRSIZE : PTRSIZE;
+  lvar->offset = locals_offset += PTRSIZE;
   locals = lvar;
   return lvar;
 }
@@ -170,6 +171,23 @@ Node* new_node_num(int val) {
 
 Node* expr();
 
+void add_array(Node* parent, Node* child)
+{
+      parent->array = realloc(parent->array, PTRSIZE * (parent->val + 1)); // sizeof(Node*)
+      parent->array[parent->val++] = child;
+}
+
+void add_param() {
+  Token* tok = consume_kind(TK_IDENT);
+  if (!tok)
+    return;
+
+  if (find_lvar(tok))
+    error("%.*s exists already", tok->len, tok->str);
+
+  new_lvar(tok);
+}
+
 Node* new_node_ident() {
   Token* tok = consume_kind(TK_IDENT);
   if (!tok)
@@ -181,8 +199,7 @@ Node* new_node_ident() {
     node->token = tok;
     if (!consume(")")) {
       do {
-        node->array = realloc(node->array, PTRSIZE * (node->val + 1)); // sizeof(Node*)
-        node->array[node->val++] = expr();
+        add_array(node, expr());
       } while (consume(","));
       expect(")");
     }
@@ -342,8 +359,7 @@ Node* stmt() {
   } else if (consume("{")) {
     node = new_node(ND_BLOCK, NULL, NULL);
     while (!consume("}")) {
-      node->array = realloc(node->array, PTRSIZE * (node->val + 1)); // sizeof(Node*)
-      node->array[node->val++] = stmt();
+      add_array(node, stmt());
     }
   } else {
     node = expr();
@@ -352,16 +368,62 @@ Node* stmt() {
   return node;
 }
 
+bool is_func() {
+  Token* cur = token;
+  bool function = consume_kind(TK_IDENT) && consume("(");
+  token = cur;
+  return function;
+}
+
+Node* func() {
+  if (is_func()) {
+    Token* tok = consume_kind(TK_IDENT);
+    Node* node = calloc(1, sizeof(Node));
+    node->kind = ND_FUNC;
+    node->token = tok;
+
+    // hook
+    LVar* locals_orig = locals;
+    locals = node->locals;
+    locals_offset = 0;
+
+    // param
+    expect("(");
+    if (!consume(")")) {
+      do {
+        add_param();
+      } while (consume(","));
+      expect(")");
+    }
+    node->params = locals_offset / PTRSIZE;
+
+    // body
+    expect("{");
+    while (!consume("}")) {
+      add_array(node, stmt());
+    }
+
+    // unhook
+    node->locals = locals;
+    locals = locals_orig;
+    return node;
+  }
+
+  return stmt();
+}
+
 void program() {
   int i = 0;
-  while (!at_eof())
-    code[i++] = stmt();
+  while (!at_eof()) {
+    code[i++] = func();
+  }
   code[i] = NULL;
 }
 
 /*
  * EBNF
- * program    = stmt*
+ * program    = func*
+ * func       = stmt | ident "(" (ident ("," ident)*)? ")" "{" stmt* "}"
  * stmt       = expr ";"
                 | "{" stmt* "}"
                 | "return" expr? ";"

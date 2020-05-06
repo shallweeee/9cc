@@ -55,8 +55,18 @@ typedef enum {
   ND_FOR,
   ND_BLOCK,
   ND_CALL,
+  ND_FUNC,
   ND_NUM,
 } NodeKind;
+
+typedef struct LVar LVar;
+
+struct LVar {
+  LVar* next;
+  char* name;
+  int len;
+  int offset;
+};
 
 typedef struct Node Node;
 
@@ -66,17 +76,10 @@ struct Node {
   Node* rhs;
   Node** array;
   Token* token;
+  LVar* locals;
   int val;
   int offset;
-};
-
-typedef struct LVar LVar;
-
-struct LVar {
-  LVar* next;
-  char* name;
-  int len;
-  int offset;
+  int params;
 };
 
 extern char* user_input;
@@ -92,5 +95,11 @@ void program();
 
 // codegen.c
 void gen_arm();
+
+#if 1
+#define debug(fmt, ...) fprintf(stderr, fmt "\n", ##__VA_ARGS__)
+#else
+#define debug(fmt, ...) printf("#" fmt "\n", ##__VA_ARGS__)
+#endif
 
 #endif
