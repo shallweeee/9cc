@@ -57,6 +57,8 @@ typedef enum {
   ND_BLOCK,
   ND_CALL,
   ND_FUNC,
+  ND_ADDR,
+  ND_DEREF,
   ND_NUM,
 } NodeKind;
 

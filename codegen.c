@@ -166,6 +166,15 @@ void gen_arm_asm(Node* node) {
         printf("  add sp, sp, #%d\n", PTRSIZE * (node->val - REG_PARAMS));
       printf("  push {r0}\n");
       return;
+    case ND_ADDR:
+      gen_lval(node->rhs);
+      return;
+    case ND_DEREF:
+      gen_arm_asm(node->rhs);
+      printf("  pop {r0}\n");
+      printf("  ldr r0, [r0]\n");
+      printf("  push {r0}\n");
+      return;
     default:
       break;
   }

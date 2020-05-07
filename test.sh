@@ -52,5 +52,7 @@ assert 55 'r(n){if(n==1)return n; else return n + r(n-1);} main(){return r(10);}
 assert 5 'fibo(n) { if (n < 2) return n; else fibo(n - 1) + fibo(n - 2); } main() { return fibo(5); }'
 assert 13 'fibo(n) { if (n < 2) return n; else fibo(n - 1) + fibo(n - 2); } main() { return fibo(7); }'
 assert 233 'fibo(n) { if (n < 2) return n; else fibo(n - 1) + fibo(n - 2); } main() { return fibo(13); }'
+assert 3 'main() {x = 3; y = &x; return *y; }'
+assert 3 'main() {x = 3; y = 5; z = &y + 4; return *z; }'
 
 echo OK

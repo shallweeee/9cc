@@ -121,7 +121,7 @@ void tokenize(char* p) {
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||
         *p == '(' || *p == ')' || *p == '<' || *p == '>' ||
         *p == ';' || *p == '=' || *p == '{' || *p == '}' ||
-        *p == ',') {
+        *p == ',' || *p == '&') {
       cur = new_token(TK_RESERVED, cur, p++);
       cur->len = 1;
       continue;
@@ -244,9 +244,12 @@ Node* primary() {
 }
 
 Node* unary() {
+  if (consume("*"))
+    return new_node(ND_DEREF, NULL, unary());
+  if (consume("&"))
+    return new_node(ND_ADDR, NULL, unary());
   if (consume("-"))
     return new_node(ND_SUB, new_node_num(0), primary());
-
   consume("+");
   return primary();
 }
@@ -436,19 +439,25 @@ void program() {
 /*
  * EBNF
  * program    = func*
- * func       = stmt | ident "(" (ident ("," ident)*)? ")" "{" stmt* "}"
+ * func       = stmt
+              | ident "(" (ident ("," ident)*)? ")" "{" stmt* "}"
  * stmt       = expr ";"
-                | "{" stmt* "}"
-                | "return" expr? ";"
-                | "if" "(" expr ")" stmt ("else" stmt)?
-                | "while" "(" expr ")" stmt
-                | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+              | "{" stmt* "}"
+              | "return" expr? ";"
+              | "if" "(" expr ")" stmt ("else" stmt)?
+              | "while" "(" expr ")" stmt
+              | "for" "(" expr? ";" expr? ";" expr? ")" stmt
  * expr       = assign
  * assign     = equality ("=" assign)?
  * equality   = relational ("==" relational | "!=" relational)*
  * relational = add ("<" add | "<=" add | ">" add | ">=" add)*
  * add        = mul ("+" mul | "-" mul)*
  * mul        = unary ("*" unary | "/" unary)*
- * unary      = ("+" | "-")? primary
- * primary    = num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
+ * unary      = "+"? primary
+              | "-"? primary
+              | "*" unary
+              | "&" unary
+ * primary    = num
+              | ident ("(" (expr ("," expr)*)? ")")?
+              | "(" expr ")"
  */
