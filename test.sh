@@ -39,7 +39,6 @@ assert 3 'foo = 2; if (foo == 1) foo = 2; else foo = 3;'
 assert 10 'foo = 0; while (foo < 10) foo = foo + 1; return foo;'
 assert 55 'foo = 0; for (count = 1; count <= 10; count = count + 1) foo = foo + count; return foo;'
 assert 55 'count = 1; foo = 0; while (count <= 10) { foo = foo + count; count = count + 1; } foo;'
-}
 
 assert 4 'main() { return 4; }'
 assert 5 'test() { return 5; } main() { return test(); }'
@@ -54,5 +53,9 @@ assert 13 'fibo(n) { if (n < 2) return n; else fibo(n - 1) + fibo(n - 2); } main
 assert 233 'fibo(n) { if (n < 2) return n; else fibo(n - 1) + fibo(n - 2); } main() { return fibo(13); }'
 assert 3 'main() {x = 3; y = &x; return *y; }'
 assert 3 'main() {x = 3; y = 5; z = &y + 4; return *z; }'
+}
+
+assert 12 'int add(int a, int b, int c) { return a+b+c; } int main() { int x; int y; x=3; y=4; return add (x, y, 5); }'
+assert 233 'int fibo(int n) { if (n<2) return n; else fibo(n-1) + fibo(n-2); } int main() { return fibo(13); }'
 
 echo OK

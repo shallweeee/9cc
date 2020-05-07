@@ -23,6 +23,7 @@ typedef enum {
   TK_ELSE,
   TK_WHILE,
   TK_FOR,
+  TK_INT,
   TK_EOF,
 } TokenKind;
 
@@ -59,6 +60,7 @@ typedef enum {
   ND_FUNC,
   ND_ADDR,
   ND_DEREF,
+  ND_VARIABLE,
   ND_NUM,
 } NodeKind;
 

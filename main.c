@@ -54,6 +54,9 @@ void print_token() {
       case TK_FOR:
         debug("FOR :");
         break;
+      case TK_INT:
+        debug("INT :");
+        break;
       case TK_EOF:
         return;
     }

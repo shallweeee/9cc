@@ -79,6 +79,14 @@ int expect_number() {
   return val;
 }
 
+Token* expect_kind(TokenKind kind) {
+  if (token->kind != kind)
+    error_at(token->str, "It's not a kind %d", kind);
+  Token* cur = token;
+  token = token->next;
+  return cur;
+};
+
 bool at_eof() {
   return token->kind == TK_EOF;
 }
@@ -138,6 +146,7 @@ void tokenize(char* p) {
     CHECK_KEYWORD("else", 4, TK_ELSE);
     CHECK_KEYWORD("while", 5, TK_WHILE);
     CHECK_KEYWORD("for", 3, TK_FOR);
+    CHECK_KEYWORD("int", 3, TK_INT);
 
     if (isalpha(*p) || *p == '_') {
       cur = new_token(TK_IDENT, cur, p++);
@@ -178,9 +187,10 @@ void add_array(Node* parent, Node* child)
 }
 
 void add_param() {
-  Token* tok = consume_kind(TK_IDENT);
-  if (!tok)
+  if (!consume_kind(TK_INT))
     return;
+
+  Token* tok = expect_kind(TK_IDENT);
 
   if (find_lvar(tok))
     error("%.*s exists already", tok->len, tok->str);
@@ -221,7 +231,7 @@ Node* new_node_ident() {
 
   LVar* lvar = find_lvar(tok);
   if (!lvar)
-    lvar = new_lvar(tok);
+    error("%.*s was not defined", tok->len, tok->str);
 
   Node* node = calloc(1, sizeof(Node));
   node->kind = ND_LVAR;
@@ -377,6 +387,15 @@ Node* stmt() {
     while (!consume("}")) {
       add_array(node, stmt());
     }
+  } else if (consume_kind(TK_INT)) {
+    Token* tok = expect_kind(TK_IDENT);
+
+    if (find_lvar(tok))
+      error("%.*s exists already", tok->len, tok->str);
+
+    new_lvar(tok);
+    expect(";");
+    return new_node(ND_VARIABLE, NULL, NULL);
   } else {
     node = expr();
     expect(";");
@@ -386,13 +405,14 @@ Node* stmt() {
 
 bool is_func() {
   Token* cur = token;
-  bool function = consume_kind(TK_IDENT) && consume("(");
+  bool function = consume_kind(TK_INT) && consume_kind(TK_IDENT) && consume("(");
   token = cur;
   return function;
 }
 
 Node* func() {
   if (is_func()) {
+    consume_kind(TK_INT);
     Token* tok = consume_kind(TK_IDENT);
     Node* node = calloc(1, sizeof(Node));
     node->kind = ND_FUNC;
@@ -440,8 +460,9 @@ void program() {
  * EBNF
  * program    = func*
  * func       = stmt
-              | ident "(" (ident ("," ident)*)? ")" "{" stmt* "}"
+              | "int" ident "(" ("int" ident ("," "int" ident)*)? ")" "{" stmt* "}"
  * stmt       = expr ";"
+              | "int" ident ";"
               | "{" stmt* "}"
               | "return" expr? ";"
               | "if" "(" expr ")" stmt ("else" stmt)?

@@ -175,6 +175,9 @@ void gen_arm_asm(Node* node) {
       printf("  ldr r0, [r0]\n");
       printf("  push {r0}\n");
       return;
+    case ND_VARIABLE:
+      add_dummy();
+      return;
     default:
       break;
   }
