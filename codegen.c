@@ -8,10 +8,19 @@
 int label_count = 0;
 
 void gen_lval(Node* node) {
-  if (node->kind != ND_LVAR)
-    error("It's not a lvalue");
+  if (node->kind != ND_LVAR && node->kind != ND_DEREF)
+    error("It's neither a lvalue nor deref: %d", node->kind);
+
+  int deref = 0;
+  while (node->kind == ND_DEREF) {
+    node = node->rhs;
+    deref++;
+  }
 
   printf("  sub r0, fp, #%d\n", node->offset);
+  for (int i = 0; i < deref; ++i)
+    printf("  ldr r0, [r0]\n");
+
   printf("  push {r0}\n");
 }
 
@@ -35,7 +44,38 @@ void epilogue(Node* node) {
   printf("  pop {fp, pc}\n");
 }
 
+void print_node(Node* node) {
+  switch (node->kind) {
+    case ND_FUNC:
+      debug("node func(%d): %.*s(%d) locals %d stmt %d", node->kind, node->token->len, node->token->str,
+          node->params, node->locals ? node->locals->offset / PTRSIZE : 0, node->val);
+      break;
+    case ND_DEREF:
+      debug("node deref(%d):", node->kind);
+      break;
+    case ND_VARIABLE:
+      debug("node var(%d): %d* %.*s", node->kind, node->ptr_count, node->token->len, node->token->str);
+      break;
+    case ND_ASSIGN:
+      debug("node assign(%d):", node->kind);
+      break;
+    case ND_ADDR:
+      debug("node addr(%d): &", node->kind);
+      break;
+    case ND_NUM:
+      debug("node num(%d): %d", node->kind, node->val);
+      break;
+    case ND_LVAR:
+      debug("node lvar(%d): %d", node->kind, node->val);
+      break;
+    default:
+      debug("node %d", node->kind);
+      break;
+  }
+}
+
 void gen_arm_asm(Node* node) {
+  //print_node(node);
   switch (node->kind) {
     case ND_FUNC:
       prologue(node);

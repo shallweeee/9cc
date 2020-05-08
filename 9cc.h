@@ -71,6 +71,7 @@ struct LVar {
   char* name;
   int len;
   int offset;
+  int ptr_count;
 };
 
 typedef struct Node Node;
@@ -84,6 +85,7 @@ struct Node {
   LVar* locals;
   int val;
   int offset;
+  int ptr_count;
   int params;
 };
 

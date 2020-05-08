@@ -57,5 +57,7 @@ assert 3 'main() {x = 3; y = 5; z = &y + 4; return *z; }'
 
 assert 12 'int add(int a, int b, int c) { return a+b+c; } int main() { int x; int y; x=3; y=4; return add (x, y, 5); }'
 assert 233 'int fibo(int n) { if (n<2) return n; else fibo(n-1) + fibo(n-2); } int main() { return fibo(13); }'
+assert 3 'int main() { return 3; }'
+assert 3 'int main() { int x; int* y; y = &x; *y = 3; return x; }'
 
 echo OK

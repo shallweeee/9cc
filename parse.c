@@ -38,12 +38,14 @@ LVar* find_lvar(Token* tok) {
   return NULL;
 }
 
-LVar* new_lvar(Token* tok) {
+LVar* new_lvar(Token* tok, int ptr_count) {
   LVar* lvar = calloc(1, sizeof(LVar));
   lvar->next = locals;
   lvar->name = tok->str;
   lvar->len = tok->len;
   lvar->offset = locals_offset += PTRSIZE;
+  lvar->ptr_count = ptr_count;
+
   locals = lvar;
   return lvar;
 }
@@ -190,12 +192,16 @@ void add_param() {
   if (!consume_kind(TK_INT))
     return;
 
+  int count = 0;
+  while (consume("*"))
+    count++;
+
   Token* tok = expect_kind(TK_IDENT);
 
   if (find_lvar(tok))
     error("%.*s exists already", tok->len, tok->str);
 
-  new_lvar(tok);
+  new_lvar(tok, count);
 }
 
 void optimize_param(Node* node) {
@@ -388,14 +394,20 @@ Node* stmt() {
       add_array(node, stmt());
     }
   } else if (consume_kind(TK_INT)) {
+    int count = 0;
+    while (consume("*"))
+      count++;
+
     Token* tok = expect_kind(TK_IDENT);
 
     if (find_lvar(tok))
       error("%.*s exists already", tok->len, tok->str);
 
-    new_lvar(tok);
+    new_lvar(tok, count);
     expect(";");
-    return new_node(ND_VARIABLE, NULL, NULL);
+    node = new_node(ND_VARIABLE, NULL, NULL);
+    node->token = tok;
+    node->ptr_count = count;
   } else {
     node = expr();
     expect(";");
@@ -460,14 +472,14 @@ void program() {
  * EBNF
  * program    = func*
  * func       = stmt
-              | "int" ident "(" ("int" ident ("," "int" ident)*)? ")" "{" stmt* "}"
+ *            | "int" ident "(" ("int" "*"* ident ("," "int" "*"* ident)*)? ")" "{" stmt* "}"
  * stmt       = expr ";"
-              | "int" ident ";"
-              | "{" stmt* "}"
-              | "return" expr? ";"
-              | "if" "(" expr ")" stmt ("else" stmt)?
-              | "while" "(" expr ")" stmt
-              | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+ *            | "int" "*"* ident ";"
+ *            | "{" stmt* "}"
+ *            | "return" expr? ";"
+ *            | "if" "(" expr ")" stmt ("else" stmt)?
+ *            | "while" "(" expr ")" stmt
+ *            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
  * expr       = assign
  * assign     = equality ("=" assign)?
  * equality   = relational ("==" relational | "!=" relational)*
@@ -475,10 +487,10 @@ void program() {
  * add        = mul ("+" mul | "-" mul)*
  * mul        = unary ("*" unary | "/" unary)*
  * unary      = "+"? primary
-              | "-"? primary
-              | "*" unary
-              | "&" unary
+ *            | "-" primary
+ *            | "*" unary
+ *            | "&" unary
  * primary    = num
-              | ident ("(" (expr ("," expr)*)? ")")?
-              | "(" expr ")"
+ *            | ident ("(" (expr ("," expr)*)? ")")?
+ *            | "(" expr ")"
  */
