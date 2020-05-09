@@ -25,6 +25,7 @@ typedef enum {
   TK_WHILE,
   TK_FOR,
   TK_INT,
+  TK_SIZEOF,
   TK_EOF,
 } TokenKind;
 
@@ -71,6 +72,7 @@ struct Type {
   enum {INT, PTR} ty;
   Type* ptr_to;
 };
+
 typedef struct LVar LVar;
 
 struct LVar {

@@ -67,5 +67,9 @@ assert 3 'int main() { return 3; }'
 assert 3 'int main() { int x; int* y; y = &x; *y = 3; return x; }'
 assert 8 'int main() { int *p; alloc4(&p,1,2,4,8); int *q; q=p+2; *q; q=p+3; return *q; }'
 assert 4 'int main() { int *p; alloc4(&p,1,2,4,8); int *q; q=p+3; q = q-1; return *q; }'
+assert 4 'int main() { int x; return sizeof x; }'
+assert 4 'int main() { int x; return sizeof(x + 3); }'
+assert 4 'int main() { int* x; return sizeof(x); }'
+assert 4 'int main() { return sizeof(sizeof(1)); }'
 
 echo OK

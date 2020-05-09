@@ -43,7 +43,7 @@ LVar* new_lvar(Token* tok, Type* type) {
   lvar->next = locals;
   lvar->name = tok->str;
   lvar->len = tok->len;
-  lvar->offset = locals_offset += PTRSIZE;
+  lvar->offset = locals_offset += INTSIZE;
   lvar->type = type;
 
   locals = lvar;
@@ -131,7 +131,7 @@ void tokenize(char* p) {
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||
         *p == '(' || *p == ')' || *p == '<' || *p == '>' ||
         *p == ';' || *p == '=' || *p == '{' || *p == '}' ||
-        *p == ',' || *p == '&') {
+        *p == ',' || *p == '&' || *p == '[' || *p == ']') {
       cur = new_token(TK_RESERVED, cur, p++);
       cur->len = 1;
       continue;
@@ -149,6 +149,7 @@ void tokenize(char* p) {
     CHECK_KEYWORD("while", 5, TK_WHILE);
     CHECK_KEYWORD("for", 3, TK_FOR);
     CHECK_KEYWORD("int", 3, TK_INT);
+    CHECK_KEYWORD("sizeof", 6, TK_SIZEOF);
 
     if (isalpha(*p) || *p == '_') {
       cur = new_token(TK_IDENT, cur, p++);
@@ -305,6 +306,11 @@ Node* primary() {
 }
 
 Node* unary() {
+  if (consume_kind(TK_SIZEOF)) {
+    Node* node = unary();
+    int size = (node->type->ty == PTR) ? PTRSIZE : INTSIZE;
+    return new_node_num(size);
+  }
   if (consume("*"))
     return new_node(ND_DEREF, NULL, unary());
   if (consume("&"))
@@ -451,6 +457,7 @@ Node* stmt() {
     expect(";");
 
     new_lvar(tok, type);
+
     node = new_node(ND_VARIABLE, NULL, NULL);
     node->token = tok;
     node->type = type;
@@ -532,8 +539,8 @@ void program() {
  * relational = add ("<" add | "<=" add | ">" add | ">=" add)*
  * add        = mul ("+" mul | "-" mul)*
  * mul        = unary ("*" unary | "/" unary)*
- * unary      = "+"? primary
- *            | "-" primary
+ * unary      = "sizeof" unary
+ *            | ("+" | "-")? primary
  *            | "*" unary
  *            | "&" unary
  * primary    = num
