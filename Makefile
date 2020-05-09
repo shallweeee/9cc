@@ -11,6 +11,9 @@ $(OBJS): 9cc.h
 test: 9cc
 	./test.sh
 
+helper.o: helper.c
+	$(CC) $(CFLAGS)  -c -o $@ $<
+
 sample: test.c
 	$(CC) -S test.c
 

@@ -1,11 +1,17 @@
 #! /bin/bash
 
+HELPER=
+if [ -f helper.c ]; then
+  make helper.o
+  HELPER=helper.o
+fi
+
 assert() {
 	expected="$1"
   input="$2"
 
   ./9cc "$input" > tmp.s
-  gcc -o tmp tmp.s
+  gcc -o tmp tmp.s $HELPER
   ./tmp
   actual="$?"
 
@@ -59,5 +65,6 @@ assert 12 'int add(int a, int b, int c) { return a+b+c; } int main() { int x; in
 assert 233 'int fibo(int n) { if (n<2) return n; else fibo(n-1) + fibo(n-2); } int main() { return fibo(13); }'
 assert 3 'int main() { return 3; }'
 assert 3 'int main() { int x; int* y; y = &x; *y = 3; return x; }'
+assert 8 'int main() { int *p; alloc4(&p,1,2,4,8); int *q; q=p+2; *q; q=p+3; return *q; }'
 
 echo OK

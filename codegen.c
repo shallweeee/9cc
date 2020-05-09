@@ -46,6 +46,9 @@ void epilogue(Node* node) {
 
 void print_node(Node* node) {
   switch (node->kind) {
+    case ND_ADD:
+      debug("node add(%d): +", node->kind);
+      break;
     case ND_FUNC:
       debug("node func(%d): %.*s(%d) locals %d stmt %d", node->kind, node->token->len, node->token->str,
           node->params, node->locals ? node->locals->offset / PTRSIZE : 0, node->val);
@@ -57,7 +60,8 @@ void print_node(Node* node) {
       debug("node var(%d): %d* %.*s", node->kind, node->ptr_count, node->token->len, node->token->str);
       break;
     case ND_ASSIGN:
-      debug("node assign(%d):", node->kind);
+      print_node(node->lhs);
+      debug("node assign(%d): =", node->kind);
       break;
     case ND_ADDR:
       debug("node addr(%d): &", node->kind);
@@ -66,7 +70,10 @@ void print_node(Node* node) {
       debug("node num(%d): %d", node->kind, node->val);
       break;
     case ND_LVAR:
-      debug("node lvar(%d): %d", node->kind, node->val);
+      debug("node lvar(%d): *%d %.*s off %d", node->kind, node->ptr_count, node->token->len, node->token->str, node->offset);
+      break;
+    case ND_CALL:
+      debug("node call(%d): %.*s(%d)", node->kind, node->token->len, node->token->str, node->val);
       break;
     default:
       debug("node %d", node->kind);
@@ -74,13 +81,30 @@ void print_node(Node* node) {
   }
 }
 
+// r0, r1
+void handle_pointer_op(char* reg, int size) {
+  printf("  mov r2, #%d\n", size);
+  printf("  mul %s, %s, r2\n", reg, reg);
+}
+
+void handle_pointer(Node* lhs, Node* rhs) {
+  if ((lhs->ptr_count > 0) && (rhs->ptr_count > 0))
+    error("two pointers");
+
+  if (rhs->ptr_count && (lhs->kind == ND_NUM))
+    handle_pointer_op("r0", 4); // int, ptr
+  else if (lhs->ptr_count && (rhs->kind == ND_NUM))
+    handle_pointer_op("r1", 4);
+}
+
 void gen_arm_asm(Node* node) {
-  //print_node(node);
+  print_node(node);
   switch (node->kind) {
     case ND_FUNC:
       prologue(node);
 
       for (int i = 0; i < node->val; ++i) {
+        debug("");
         //comment("#stmt %d\n", i);
         gen_arm_asm(node->array[i]);
         del_dummy();
@@ -229,9 +253,11 @@ void gen_arm_asm(Node* node) {
 
   switch (node->kind) {
     case ND_ADD:
+      handle_pointer(node->lhs, node->rhs);
       printf("  add r0, r1\n");
       break;
     case ND_SUB:
+      handle_pointer(node->lhs, node->rhs);
       printf("  sub r0, r1\n");
       break;
     case ND_MUL:

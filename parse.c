@@ -242,6 +242,8 @@ Node* new_node_ident() {
   Node* node = calloc(1, sizeof(Node));
   node->kind = ND_LVAR;
   node->offset = lvar->offset;
+  node->ptr_count = lvar->ptr_count;
+node->token = tok; // debug info
   return node;
 }
 

@@ -103,10 +103,17 @@ void program();
 // codegen.c
 void gen_arm();
 
-#if 1
+#define DEBUG_LEVEL 0
+
+#if (DEBUG_LEVEL == 0)
+#define debug(fmt, ...)
+
+#elif (DEBUG_LEVEL == 1)
 #define debug(fmt, ...) fprintf(stderr, fmt "\n", ##__VA_ARGS__)
-#else
+
+#elif (DEBUG_LEVEL == 2)
 #define debug(fmt, ...) printf("#" fmt "\n", ##__VA_ARGS__)
+
 #endif
 
 #endif
