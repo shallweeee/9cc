@@ -66,5 +66,6 @@ assert 233 'int fibo(int n) { if (n<2) return n; else fibo(n-1) + fibo(n-2); } i
 assert 3 'int main() { return 3; }'
 assert 3 'int main() { int x; int* y; y = &x; *y = 3; return x; }'
 assert 8 'int main() { int *p; alloc4(&p,1,2,4,8); int *q; q=p+2; *q; q=p+3; return *q; }'
+assert 4 'int main() { int *p; alloc4(&p,1,2,4,8); int *q; q=p+3; q = q-1; return *q; }'
 
 echo OK

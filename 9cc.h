@@ -9,9 +9,10 @@
 #include <string.h>
 
 #define PTRSIZE 4
+#define INTSIZE 4
 #define REG_PARAMS 4
 
-//#define PRINT_TREE
+//#define PRINT_TOKEN
 //#define SUPPORT_GREATER
 
 typedef enum {
@@ -64,6 +65,12 @@ typedef enum {
   ND_NUM,
 } NodeKind;
 
+typedef struct Type Type;
+
+struct Type {
+  enum {INT, PTR} ty;
+  Type* ptr_to;
+};
 typedef struct LVar LVar;
 
 struct LVar {
@@ -71,7 +78,7 @@ struct LVar {
   char* name;
   int len;
   int offset;
-  int ptr_count;
+  Type* type;
 };
 
 typedef struct Node Node;
@@ -85,8 +92,8 @@ struct Node {
   LVar* locals;
   int val;
   int offset;
-  int ptr_count;
   int params;
+  Type* type;
 };
 
 extern char* user_input;
@@ -107,12 +114,15 @@ void gen_arm();
 
 #if (DEBUG_LEVEL == 0)
 #define debug(fmt, ...)
+#define debug2(fmt, ...)
 
 #elif (DEBUG_LEVEL == 1)
 #define debug(fmt, ...) fprintf(stderr, fmt "\n", ##__VA_ARGS__)
+#define debug2(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
 
 #elif (DEBUG_LEVEL == 2)
 #define debug(fmt, ...) printf("#" fmt "\n", ##__VA_ARGS__)
+#define debug2(fmt, ...) printf(fmt, ##__VA_ARGS__)
 
 #endif
 

@@ -38,13 +38,13 @@ LVar* find_lvar(Token* tok) {
   return NULL;
 }
 
-LVar* new_lvar(Token* tok, int ptr_count) {
+LVar* new_lvar(Token* tok, Type* type) {
   LVar* lvar = calloc(1, sizeof(LVar));
   lvar->next = locals;
   lvar->name = tok->str;
   lvar->len = tok->len;
   lvar->offset = locals_offset += PTRSIZE;
-  lvar->ptr_count = ptr_count;
+  lvar->type = type;
 
   locals = lvar;
   return lvar;
@@ -165,11 +165,52 @@ void tokenize(char* p) {
   token = head.next;
 }
 
+Type* new_int_type() {
+  static Type type = {INT};
+  return &type;
+}
+
+Type* add_ptr_type(Type* to) {
+  Type* type = calloc(1, sizeof(Type));
+  type->ty = PTR;
+  type->ptr_to = to;
+  return type;
+}
+
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
   Node* node = calloc(1, sizeof(Node));
   node->kind = kind;
   node->lhs = lhs;
   node->rhs = rhs;
+
+  switch (kind) {
+    case ND_DEREF:
+      node->type = rhs->type->ptr_to;
+      break;
+    case ND_ADDR:
+      node->type = add_ptr_type(rhs->type);
+      break;
+    case ND_ADD: // Fall-through
+    case ND_SUB:
+      if (lhs->type->ty == PTR)
+        node->type = lhs->type;
+      else
+        node->type = rhs->type;
+      break;
+    case ND_MUL: // Fall-through
+    case ND_DIV:
+      node->type = lhs->type;
+      break;
+    case ND_EQU:
+    case ND_NEQ:
+      node->type = new_int_type();
+      break;
+    case ND_ASSIGN:
+      node->type = lhs->type;
+    default:
+      break;
+  }
+
   return node;
 }
 
@@ -177,6 +218,7 @@ Node* new_node_num(int val) {
   Node* node = calloc(1, sizeof(Node));
   node->kind = ND_NUM;
   node->val = val;
+  node->type = new_int_type();
   return node;
 }
 
@@ -192,16 +234,16 @@ void add_param() {
   if (!consume_kind(TK_INT))
     return;
 
-  int count = 0;
+  Type* type = new_int_type();
   while (consume("*"))
-    count++;
+    type = add_ptr_type(type);
 
   Token* tok = expect_kind(TK_IDENT);
 
   if (find_lvar(tok))
     error("%.*s exists already", tok->len, tok->str);
 
-  new_lvar(tok, count);
+  new_lvar(tok, type);
 }
 
 void optimize_param(Node* node) {
@@ -226,6 +268,7 @@ Node* new_node_ident() {
     Node* node = calloc(1, sizeof(Node));
     node->kind = ND_CALL;
     node->token = tok;
+    node->type = new_int_type(); // TBC
     if (!consume(")")) {
       do {
         add_array(node, expr());
@@ -242,8 +285,8 @@ Node* new_node_ident() {
   Node* node = calloc(1, sizeof(Node));
   node->kind = ND_LVAR;
   node->offset = lvar->offset;
-  node->ptr_count = lvar->ptr_count;
-node->token = tok; // debug info
+  node->type = lvar->type;
+  node->token = tok; // debug info
   return node;
 }
 
@@ -396,20 +439,21 @@ Node* stmt() {
       add_array(node, stmt());
     }
   } else if (consume_kind(TK_INT)) {
-    int count = 0;
+    Type* type = new_int_type();
     while (consume("*"))
-      count++;
+      type = add_ptr_type(type);
 
     Token* tok = expect_kind(TK_IDENT);
 
     if (find_lvar(tok))
       error("%.*s exists already", tok->len, tok->str);
 
-    new_lvar(tok, count);
     expect(";");
+
+    new_lvar(tok, type);
     node = new_node(ND_VARIABLE, NULL, NULL);
     node->token = tok;
-    node->ptr_count = count;
+    node->type = type;
   } else {
     node = expr();
     expect(";");
