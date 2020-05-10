@@ -71,5 +71,10 @@ assert 4 'int main() { int x; return sizeof x; }'
 assert 4 'int main() { int x; return sizeof(x + 3); }'
 assert 4 'int main() { int* x; return sizeof(x); }'
 assert 4 'int main() { return sizeof(sizeof(1)); }'
+assert 40 'int main() { int ar[10]; return sizeof(ar); }'
+assert 1 'int main() {int a2; int a1; int* q; q = &a1; int* p; p=q; *p=1; return *p;}'
+assert 3 'int main() {int a2; int a1; a1=1; a2=2; int *p; p=&a1; return *(p+0) + *(p+1);}'
+assert 3 'int main() {int a[2]; *(a+0)=1; *(a+1)=2; int *p; p=a; return *(p+0) + *(p+1);}'
+assert 3 'int main() {int a[2]; *a=1; *(a+1)=2; int *p; p=a; return *p + *(p+1);}'
 
 echo OK

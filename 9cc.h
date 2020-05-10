@@ -69,8 +69,9 @@ typedef enum {
 typedef struct Type Type;
 
 struct Type {
-  enum {INT, PTR} ty;
+  enum {INT, PTR, ARRAY} ty;
   Type* ptr_to;
+  size_t array_size;
 };
 
 typedef struct LVar LVar;

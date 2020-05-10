@@ -31,6 +31,14 @@ void error_at(char* loc, char* fmt, ...) {
   exit(1);
 }
 
+int get_sizeof(Type* type) {
+  if (type->ty == ARRAY)
+    return type->array_size * get_sizeof(type->ptr_to);
+  if (type->ty == PTR)
+    return PTRSIZE;
+  return INTSIZE;
+}
+
 LVar* find_lvar(Token* tok) {
   for (LVar* var = locals; var; var = var->next)
     if (var->len == tok->len && !memcmp(var->name, tok->str, tok->len))
@@ -43,7 +51,7 @@ LVar* new_lvar(Token* tok, Type* type) {
   lvar->next = locals;
   lvar->name = tok->str;
   lvar->len = tok->len;
-  lvar->offset = locals_offset += INTSIZE;
+  lvar->offset = locals_offset += get_sizeof(type);
   lvar->type = type;
 
   locals = lvar;
@@ -178,6 +186,14 @@ Type* add_ptr_type(Type* to) {
   return type;
 }
 
+Type* add_array_type(Type* to, int size) {
+  Type* type = calloc(1, sizeof(Type));
+  type->ty = ARRAY;
+  type->ptr_to = to;
+  type->array_size = size;
+  return type;
+}
+
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
   Node* node = calloc(1, sizeof(Node));
   node->kind = kind;
@@ -193,8 +209,16 @@ Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
       break;
     case ND_ADD: // Fall-through
     case ND_SUB:
-      if (lhs->type->ty == PTR)
+      if (((lhs->type->ty == ARRAY) || (lhs->type->ty == PTR)) &&
+          ((rhs->type->ty == ARRAY) || (rhs->type->ty == PTR)))
+        error("two pointer operation");
+
+      if (lhs->type->ty == ARRAY)
+        node->type = add_ptr_type(lhs->type->ptr_to);
+      else if (lhs->type->ty == PTR)
         node->type = lhs->type;
+      else if (rhs->type->ty == ARRAY)
+        node->type = add_ptr_type(rhs->type->ptr_to);
       else
         node->type = rhs->type;
       break;
@@ -308,8 +332,7 @@ Node* primary() {
 Node* unary() {
   if (consume_kind(TK_SIZEOF)) {
     Node* node = unary();
-    int size = (node->type->ty == PTR) ? PTRSIZE : INTSIZE;
-    return new_node_num(size);
+    return new_node_num(get_sizeof(node->type));
   }
   if (consume("*"))
     return new_node(ND_DEREF, NULL, unary());
@@ -454,7 +477,16 @@ Node* stmt() {
     if (find_lvar(tok))
       error("%.*s exists already", tok->len, tok->str);
 
+    int array_size = 0;
+    if (consume("[")) {
+      array_size = expect_number();
+      expect("]");
+    }
+
     expect(";");
+
+    if (array_size)
+      type = add_array_type(type, array_size);
 
     new_lvar(tok, type);
 
@@ -527,7 +559,7 @@ void program() {
  * func       = stmt
  *            | "int" ident "(" ("int" "*"* ident ("," "int" "*"* ident)*)? ")" "{" stmt* "}"
  * stmt       = expr ";"
- *            | "int" "*"* ident ";"
+ *            | "int" "*"* ident ("[" num "]")* ";"
  *            | "{" stmt* "}"
  *            | "return" expr? ";"
  *            | "if" "(" expr ")" stmt ("else" stmt)?

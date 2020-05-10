@@ -31,6 +31,7 @@ void prologue(Node* node) {
 }
 
 void epilogue(Node* node) {
+  SEPARATOR;
   printf("  mov sp, fp\n");
   printf("  pop {fp, pc}\n");
 }
@@ -42,7 +43,18 @@ char get_type_char(Type* type) {
     return 'I';
   if (type->ty == PTR)
     return 'P';
+  if (type->ty == ARRAY)
+    return 'A';
   return '?';
+}
+
+char count_locals(LVar* locals) {
+  int count = 0;
+  while (locals) {
+    count++;
+    locals = locals->next;
+  }
+  return count;
 }
 
 void print_node(Node* node) {
@@ -81,7 +93,7 @@ void print_node(Node* node) {
       break;
     case ND_FUNC:
       debug("node func %d %c : %.*s(%d) locals %d stmt %d", node->kind, get_type_char(node->type), node->token->len, node->token->str,
-          node->params, node->locals ? node->locals->offset / PTRSIZE : 0, node->val);
+          node->params, count_locals(node->locals), node->val);
       break;
     case ND_ADDR:
       debug("node addr %d %c : &", node->kind, get_type_char(node->type));
@@ -89,16 +101,23 @@ void print_node(Node* node) {
       break;
     case ND_DEREF:
       debug("node deref %d %c : *", node->kind, get_type_char(node->type));
-      print_node(node->rhs);
+      //print_node(node->rhs);
       break;
     case ND_VARIABLE: {
+#if (DEBUG_LEVEL == 2)
+      debug("node var %d %c : %.*s", node->kind, get_type_char(node->type), node->token->len, node->token->str);
+#else
       debug2("node var %d %c : %s", node->kind, get_type_char(node->type), "int");
       Type* type = node->type;
       while (type->ty == PTR) {
         debug2("*");
         type = type->ptr_to;
       }
-      debug2(" %.*s\n", node->token->len, node->token->str);
+      debug2(" %.*s", node->token->len, node->token->str);
+      if (type->ty == ARRAY)
+        debug2("[%d]", type->array_size);
+      debug2("\n");
+#endif
       break;
     }
     case ND_NUM:
@@ -117,21 +136,10 @@ void handle_pointer_op(char* reg, int size) {
 }
 
 void handle_pointer(Node* lhs, Node* rhs) {
-  if (lhs->type->ty == PTR) {
-    if (rhs->type->ty == PTR)
-      error("two pointers");
-
+  if ((lhs->type->ty == PTR) || (lhs->type->ty == ARRAY))
     handle_pointer_op("r1", (lhs->type->ptr_to->ty == INT) ? INTSIZE : PTRSIZE);
-    return;
-  }
-
-  if (rhs->type->ty == PTR) {
-    if (lhs->type->ty == PTR)
-      error("two pointers");
-
+  else if ((rhs->type->ty == PTR) || (rhs->type->ty == ARRAY))
     handle_pointer_op("r0", (rhs->type->ptr_to->ty == INT) ? INTSIZE : PTRSIZE);
-    return;
-  }
 }
 
 void gen_arm_asm(Node* node) {
@@ -158,9 +166,11 @@ void gen_arm_asm(Node* node) {
       return;
     case ND_LVAR:
       gen_lval(node);
-      printf("  pop {r0}\n");
-      printf("  ldr r0, [r0]\n");
-      printf("  push {r0}\n");
+      if (node->type->ty != ARRAY) {
+        printf("  pop {r0}\n");
+        printf("  ldr r0, [r0]\n");
+        printf("  push {r0}\n");
+      }
       return;
     case ND_ASSIGN:
       if (node->lhs->kind == ND_DEREF)
@@ -293,11 +303,13 @@ void gen_arm_asm(Node* node) {
 
   switch (node->kind) {
     case ND_ADD:
-      handle_pointer(node->lhs, node->rhs);
+      if (node->type->ty == PTR)
+        handle_pointer(node->lhs, node->rhs);
       printf("  add r0, r1\n");
       break;
     case ND_SUB:
-      handle_pointer(node->lhs, node->rhs);
+      if (node->type->ty == PTR)
+        handle_pointer(node->lhs, node->rhs);
       printf("  sub r0, r1\n");
       break;
     case ND_MUL:
