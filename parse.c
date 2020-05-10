@@ -340,8 +340,16 @@ Node* unary() {
     return new_node(ND_ADDR, NULL, unary());
   if (consume("-"))
     return new_node(ND_SUB, new_node_num(0), primary());
-  consume("+");
-  return primary();
+  if (consume("+"))
+    return primary();
+
+  Node* node = primary();
+  if (consume("[")) {
+    node = new_node(ND_ADD, node, primary());
+    expect("]");
+    node = new_node(ND_DEREF, NULL, node);
+  }
+  return node;
 }
 
 Node* mul() {
@@ -575,6 +583,7 @@ void program() {
  *            | ("+" | "-")? primary
  *            | "*" unary
  *            | "&" unary
+ *            | primary ("[" primary "]")*
  * primary    = num
  *            | ident ("(" (expr ("," expr)*)? ")")?
  *            | "(" expr ")"
