@@ -35,7 +35,11 @@ void print_token() {
       case TK_INT:
         debug("INT :");
         break;
+      case TK_SIZEOF:
+        debug("SIZEOF :");
+        break;
       case TK_EOF:
+        debug("EOF :");
         return;
     }
     tok = tok->next;

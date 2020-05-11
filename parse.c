@@ -1,8 +1,12 @@
 #include "9cc.h"
 
 Node* code[100];
+LVar* globals;
 LVar* locals;
 int locals_offset;
+LVar** func_globals;
+int func_globals_count;
+bool in_func;
 
 int is_alnum(char c) {
   return ('a' <= c && c <= 'z') ||
@@ -46,6 +50,13 @@ LVar* find_lvar(Token* tok) {
   return NULL;
 }
 
+LVar* find_gvar(Token* tok) {
+  for (LVar* var = globals; var; var = var->next)
+    if (var->len == tok->len && !memcmp(var->name, tok->str, tok->len))
+      return var;
+  return NULL;
+}
+
 LVar* new_lvar(Token* tok, Type* type) {
   LVar* lvar = calloc(1, sizeof(LVar));
   lvar->next = locals;
@@ -56,6 +67,17 @@ LVar* new_lvar(Token* tok, Type* type) {
 
   locals = lvar;
   return lvar;
+}
+
+int get_global_index(LVar* lvar) {
+  for (int i = 0; i < func_globals_count; ++i) {
+    if (lvar == func_globals[i])
+      return i;
+  }
+
+  func_globals = (LVar**)realloc(func_globals, sizeof(LVar*) * (func_globals_count + 1));
+  func_globals[func_globals_count] = lvar;
+  return func_globals_count++;
 }
 
 bool consume(char* op) {
@@ -249,10 +271,9 @@ Node* new_node_num(int val) {
 
 Node* expr();
 
-void add_array(Node* parent, Node* child)
-{
-      parent->array = realloc(parent->array, PTRSIZE * (parent->val + 1)); // sizeof(Node*)
-      parent->array[parent->val++] = child;
+void add_array(Node* parent, Node* child) {
+  parent->array = realloc(parent->array, PTRSIZE * (parent->val + 1)); // sizeof(Node*)
+  parent->array[parent->val++] = child;
 }
 
 void add_param() {
@@ -304,14 +325,23 @@ Node* new_node_ident() {
   }
 
   LVar* lvar = find_lvar(tok);
-  if (!lvar)
-    error("%.*s was not defined", tok->len, tok->str);
+  bool global = false;
+  if (!lvar) {
+    lvar = find_gvar(tok);
+    if (!lvar)
+      error("%.*s was not defined", tok->len, tok->str);
+    global = true;
+  }
 
   Node* node = calloc(1, sizeof(Node));
   node->kind = ND_LVAR;
-  node->offset = lvar->offset;
   node->type = lvar->type;
   node->token = tok; // debug info
+  node->global = global;
+  if (global)
+    node->offset = get_global_index(lvar);
+  else
+    node->offset = lvar->offset;
   return node;
 }
 
@@ -483,7 +513,9 @@ Node* stmt() {
     Token* tok = expect_kind(TK_IDENT);
 
     if (find_lvar(tok))
-      error("%.*s exists already", tok->len, tok->str);
+      error("local %.*s exists already", tok->len, tok->str);
+    if (find_gvar(tok))
+      error("global %.*s exists already", tok->len, tok->str);
 
     int array_size = 0;
     if (consume("[")) {
@@ -501,6 +533,7 @@ Node* stmt() {
     node = new_node(ND_VARIABLE, NULL, NULL);
     node->token = tok;
     node->type = type;
+    node->global = !in_func;
   } else {
     node = expr();
     expect(";");
@@ -524,9 +557,12 @@ Node* func() {
     node->token = tok;
 
     // hook
-    LVar* locals_orig = locals;
+    in_func = true;
+    globals = locals;
     locals = node->locals;
     locals_offset = 0;
+    func_globals = NULL;
+    func_globals_count = 0;
 
     // param
     expect("(");
@@ -545,8 +581,13 @@ Node* func() {
     }
 
     // unhook
+    node->func_globals = func_globals;
+    node->offset = func_globals_count;
     node->locals = locals;
-    locals = locals_orig;
+    locals = globals;
+    locals_offset = locals ? locals->offset : 0;
+    in_func = false;
+
     return node;
   }
 

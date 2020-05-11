@@ -14,6 +14,21 @@
 
 //#define PRINT_TOKEN
 //#define SUPPORT_GREATER
+#define DEBUG_LEVEL 0
+
+#if (DEBUG_LEVEL == 0)
+#define debug(fmt, ...)
+#define debug2(fmt, ...)
+
+#elif (DEBUG_LEVEL == 1)
+#define debug(fmt, ...) fprintf(stderr, fmt "\n", ##__VA_ARGS__)
+#define debug2(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
+
+#elif (DEBUG_LEVEL == 2)
+#define debug(fmt, ...) printf("#" fmt "\n", ##__VA_ARGS__)
+#define debug2(fmt, ...) printf(fmt, ##__VA_ARGS__)
+
+#endif
 
 typedef enum {
   TK_RESERVED,
@@ -93,9 +108,11 @@ struct Node {
   Node** array;
   Token* token;
   LVar* locals;
-  int val;
-  int offset;
-  int params;
+  LVar** func_globals;
+  bool global; // LVAL, VARIABLE
+  int val; // NUM, FUNC, BLOCK, CALL
+  int offset; // LVAL, FUNC
+  int params; // FUNC
   Type* type;
 };
 
@@ -103,6 +120,7 @@ extern char* user_input;
 extern Token* token;
 extern Node* code[100];
 extern LVar* locals;
+extern LVar* globals;
 
 // parse.c
 void error(char* fmt, ...);
@@ -112,21 +130,5 @@ void program();
 
 // codegen.c
 void gen_arm();
-
-#define DEBUG_LEVEL 0
-
-#if (DEBUG_LEVEL == 0)
-#define debug(fmt, ...)
-#define debug2(fmt, ...)
-
-#elif (DEBUG_LEVEL == 1)
-#define debug(fmt, ...) fprintf(stderr, fmt "\n", ##__VA_ARGS__)
-#define debug2(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
-
-#elif (DEBUG_LEVEL == 2)
-#define debug(fmt, ...) printf("#" fmt "\n", ##__VA_ARGS__)
-#define debug2(fmt, ...) printf(fmt, ##__VA_ARGS__)
-
-#endif
 
 #endif

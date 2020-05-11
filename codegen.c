@@ -6,12 +6,16 @@
 #define del_dummy() printf("  pop {r0}\n")
 
 int label_count = 0;
+int func_global_label;
 
 void gen_lval(Node* node) {
   if (node->kind != ND_LVAR)
     error("It's not a lvalue: %d", node->kind);
 
-  printf("  sub r0, fp, #%d\n", node->offset);
+  if (node->global)
+    printf("  ldr r0, .L%d+%d\n", func_global_label, node->offset * PTRSIZE);
+  else
+    printf("  sub r0, fp, #%d\n", node->offset);
   printf("  push {r0}\n");
 }
 
@@ -34,6 +38,15 @@ void epilogue(Node* node) {
   SEPARATOR;
   printf("  mov sp, fp\n");
   printf("  pop {fp, pc}\n");
+}
+
+void epilogue2(Node* node) {
+  SEPARATOR;
+  printf(".L%d:\n", func_global_label);
+  for (int i = 0; i < node->offset; ++i) {
+    LVar* lvar = node->func_globals[i];
+    printf("  .word %.*s\n", lvar->len, lvar->name);
+  }
 }
 
 char get_type_char(Type* type) {
@@ -146,6 +159,8 @@ void gen_arm_asm(Node* node) {
   print_node(node);
   switch (node->kind) {
     case ND_FUNC:
+      if (node->offset)
+        func_global_label = label_count++;
       prologue(node);
 
       for (int i = 0; i < node->val; ++i) {
@@ -158,6 +173,8 @@ void gen_arm_asm(Node* node) {
 
       if (node->val == 0 || node->array[node->val - 1]->kind != ND_RETURN)
         epilogue(node);
+      if (node->offset)
+        epilogue2(node);
       SEPARATOR;
       return;
     case ND_NUM:
@@ -290,7 +307,8 @@ void gen_arm_asm(Node* node) {
       printf("  push {r0}\n");
       return;
     case ND_VARIABLE:
-      add_dummy();
+      if (!node->global)
+        add_dummy();
       return;
     default:
       break;
@@ -358,8 +376,28 @@ void gen_arm_asm(Node* node) {
   printf("  push {r0}\n");
 }
 
+void gen_globals(LVar* var) {
+  if (!var)
+    return;
+
+  printf("  .data\n");
+  while (var) {
+    int size = var->offset - (var->next ? var->next->offset : 0);
+    printf("  .global %.*s\n", var->len, var->name);
+    printf("  .size %.*s, %d\n", var->len, var->name, size);
+    printf("%.*s:\n", var->len, var->name);
+    for (int i = 0; i < size / 4; ++i)
+      printf("  .word 0\n");
+
+    var = var->next;
+  }
+}
+
 void gen_arm() {
+  gen_globals(globals);
+
   // code gen
+  printf("  .text\n");
   for (int i = 0; code[i]; ++i) {
     gen_arm_asm(code[i]);
   }
