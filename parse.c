@@ -40,6 +40,8 @@ int get_sizeof(Type* type) {
     return type->array_size * get_sizeof(type->ptr_to);
   if (type->ty == PTR)
     return PTRSIZE;
+  if (type->ty == CHAR)
+    return 1;
   return INTSIZE;
 }
 
@@ -62,7 +64,9 @@ LVar* new_lvar(Token* tok, Type* type) {
   lvar->next = locals;
   lvar->name = tok->str;
   lvar->len = tok->len;
-  lvar->offset = locals_offset += get_sizeof(type);
+  int aligned_size = get_sizeof(type);
+  aligned_size += -aligned_size & 3;
+  lvar->offset = locals_offset += aligned_size;
   lvar->type = type;
 
   locals = lvar;
@@ -180,6 +184,7 @@ void tokenize(char* p) {
     CHECK_KEYWORD("for", 3, TK_FOR);
     CHECK_KEYWORD("int", 3, TK_INT);
     CHECK_KEYWORD("sizeof", 6, TK_SIZEOF);
+    CHECK_KEYWORD("char", 4, TK_CHAR);
 
     if (isalpha(*p) || *p == '_') {
       cur = new_token(TK_IDENT, cur, p++);
@@ -198,6 +203,11 @@ void tokenize(char* p) {
 
 Type* new_int_type() {
   static Type type = {INT};
+  return &type;
+}
+
+Type* new_char_type() {
+  static Type type = {CHAR};
   return &type;
 }
 
@@ -456,6 +466,38 @@ Node* expr() {
   return assign();
 }
 
+Node* stmt_var_definition(Type* type) {
+  while (consume("*"))
+    type = add_ptr_type(type);
+
+  Token* tok = expect_kind(TK_IDENT);
+
+  if (find_lvar(tok))
+    error("local %.*s exists already", tok->len, tok->str);
+  if (find_gvar(tok))
+    error("global %.*s exists already", tok->len, tok->str);
+
+  int array_size = 0;
+  if (consume("[")) {
+    array_size = expect_number();
+    expect("]");
+  }
+
+  expect(";");
+
+  if (array_size)
+    type = add_array_type(type, array_size);
+
+  new_lvar(tok, type);
+
+  Node* node = new_node(ND_VARIABLE, NULL, NULL);
+  node->token = tok;
+  node->type = type;
+  node->global = !in_func;
+
+  return node;
+}
+
 Node* stmt() {
   Node* node;
 
@@ -506,34 +548,9 @@ Node* stmt() {
       add_array(node, stmt());
     }
   } else if (consume_kind(TK_INT)) {
-    Type* type = new_int_type();
-    while (consume("*"))
-      type = add_ptr_type(type);
-
-    Token* tok = expect_kind(TK_IDENT);
-
-    if (find_lvar(tok))
-      error("local %.*s exists already", tok->len, tok->str);
-    if (find_gvar(tok))
-      error("global %.*s exists already", tok->len, tok->str);
-
-    int array_size = 0;
-    if (consume("[")) {
-      array_size = expect_number();
-      expect("]");
-    }
-
-    expect(";");
-
-    if (array_size)
-      type = add_array_type(type, array_size);
-
-    new_lvar(tok, type);
-
-    node = new_node(ND_VARIABLE, NULL, NULL);
-    node->token = tok;
-    node->type = type;
-    node->global = !in_func;
+    return stmt_var_definition(new_int_type());
+  } else if (consume_kind(TK_CHAR)) {
+    return stmt_var_definition(new_char_type());
   } else {
     node = expr();
     expect(";");
