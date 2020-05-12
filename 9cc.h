@@ -126,9 +126,11 @@ extern Node* code[100];
 extern LVar* globals;
 extern LVar* strings;
 
-// parse.c
+// main.c
 void error(char* fmt, ...);
+void error_at(char* loc, char* msg);
 
+// parse.c
 void tokenize(char* p);
 void program();
 

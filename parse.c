@@ -18,26 +18,6 @@ int is_alnum(char c) {
          ( c == '_');
 }
 
-void error(char* fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
-  exit(1);
-}
-
-void error_at(char* loc, char* fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-
-  int pos = loc - user_input;
-  fprintf(stderr, "%s\n", user_input);
-  fprintf(stderr, "%*s^ ", pos, "");
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
-  exit(1);
-}
-
 int get_sizeof(Type* type) {
   if (type->ty == ARRAY)
     return type->array_size * get_sizeof(type->ptr_to);
@@ -129,7 +109,7 @@ Token* consume_kind(TokenKind kind) {
 void expect(char* op) {
   if (token->kind != TK_RESERVED ||
       strlen(op) != token->len || memcmp(op, token->str, token->len) != 0)
-    error_at(token->str, "It's not '%s'", op);
+    error_at(token->str, "It's not expected");
   token = token->next;
 }
 
@@ -143,7 +123,7 @@ int expect_number() {
 
 Token* expect_kind(TokenKind kind) {
   if (token->kind != kind)
-    error_at(token->str, "It's not a kind %d", kind);
+    error_at(token->str, "It's not a expected kind");
   Token* cur = token;
   token = token->next;
   return cur;
