@@ -38,6 +38,12 @@ void print_token() {
       case TK_SIZEOF:
         debug("SIZEOF :");
         break;
+      case TK_CHAR:
+        debug("CHAR :");
+        break;
+      case TK_STR:
+        debug("STR : %.*s", tok->len, tok->str);
+        break;
       case TK_EOF:
         debug("EOF :");
         return;

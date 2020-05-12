@@ -42,6 +42,7 @@ typedef enum {
   TK_INT,
   TK_SIZEOF,
   TK_CHAR,
+  TK_STR,
   TK_EOF,
 } TokenKind;
 
@@ -79,6 +80,7 @@ typedef enum {
   ND_ADDR,
   ND_DEREF,
   ND_VARIABLE,
+  ND_STR,
   ND_NUM,
 } NodeKind;
 
@@ -98,6 +100,7 @@ struct LVar {
   int len;
   int offset;
   Type* type;
+  int string;
 };
 
 typedef struct Node Node;
@@ -112,7 +115,7 @@ struct Node {
   LVar** func_globals;
   bool global; // LVAL, VARIABLE
   int val; // NUM, FUNC, BLOCK, CALL
-  int offset; // LVAL, FUNC
+  int offset; // LVAL, FUNC, STR
   int params; // FUNC
   Type* type;
 };
@@ -120,8 +123,8 @@ struct Node {
 extern char* user_input;
 extern Token* token;
 extern Node* code[100];
-extern LVar* locals;
 extern LVar* globals;
+extern LVar* strings;
 
 // parse.c
 void error(char* fmt, ...);

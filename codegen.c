@@ -44,8 +44,11 @@ void epilogue2(Node* node) {
   SEPARATOR;
   printf(".L%d:\n", func_global_label);
   for (int i = 0; i < node->offset; ++i) {
-    LVar* lvar = node->func_globals[i];
-    printf("  .word %.*s\n", lvar->len, lvar->name);
+    LVar* var = node->func_globals[i];
+    if (var->string)
+      printf("  .word .LC%d\n", var->offset);
+    else
+      printf("  .word %.*s\n", var->len, var->name);
   }
 }
 
@@ -148,6 +151,9 @@ void print_node(Node* node) {
 #endif
       break;
     }
+    case ND_STR:
+      debug("node str %d : '%.*s'", node->kind, node->token->len, node->token->str);
+      break;
     case ND_NUM:
       debug("node num %d %c : %d", node->kind, get_type_char(node->type), node->val);
       break;
@@ -326,6 +332,13 @@ void gen_arm_asm(Node* node) {
       if (!node->global)
         add_dummy();
       return;
+    case ND_STR:
+      if (node->offset)
+        printf("  ldr r0, .L%d+%d\n", func_global_label, node->offset * PTRSIZE);
+      else
+        printf("  ldr r0, .L%d\n", func_global_label);
+      printf("  push {r0}\n");
+      return;
     default:
       break;
   }
@@ -392,6 +405,21 @@ void gen_arm_asm(Node* node) {
   printf("  push {r0}\n");
 }
 
+void gen_strings(LVar* var) {
+  if (!var)
+    return;
+
+  printf("  .section .rodata\n");
+  while (var) {
+    printf("  .align 2\n");
+    printf(".LC%d:\n", var->offset);
+    printf("  .ascii	\"%.*s\\000\"\n", var->len, var->name);
+
+    var = var->next;
+  }
+  printf("\n");
+}
+
 void gen_globals(LVar* var) {
   if (!var)
     return;
@@ -407,9 +435,11 @@ void gen_globals(LVar* var) {
 
     var = var->next;
   }
+  printf("\n");
 }
 
 void gen_arm() {
+  gen_strings(strings);
   gen_globals(globals);
 
   // code gen

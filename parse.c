@@ -1,6 +1,9 @@
 #include "9cc.h"
 
+Token* token;
+
 Node* code[100];
+LVar* strings;
 LVar* globals;
 LVar* locals;
 int locals_offset;
@@ -45,6 +48,13 @@ int get_sizeof(Type* type) {
   return INTSIZE;
 }
 
+LVar* find_string(Token* tok) {
+  for (LVar* var = strings; var; var = var->next)
+    if (var->len == tok->len && !memcmp(var->name, tok->str, tok->len))
+      return var;
+  return NULL;
+}
+
 LVar* find_lvar(Token* tok) {
   for (LVar* var = locals; var; var = var->next)
     if (var->len == tok->len && !memcmp(var->name, tok->str, tok->len))
@@ -57,6 +67,22 @@ LVar* find_gvar(Token* tok) {
     if (var->len == tok->len && !memcmp(var->name, tok->str, tok->len))
       return var;
   return NULL;
+}
+
+Type* new_char_type();
+Type* add_array_type(Type* to, int size);
+
+LVar* new_string(Token* tok) {
+  LVar* var = calloc(1, sizeof(LVar));
+  var->next = strings;
+  var->name = tok->str;
+  var->len = tok->len;
+  var->offset = strings ? strings->offset + 1 : 0;
+  var->type = add_array_type(new_char_type(), tok->len + 1);
+  var->string = 1;
+
+  strings = var;
+  return var;
 }
 
 LVar* new_lvar(Token* tok, Type* type) {
@@ -150,6 +176,15 @@ void tokenize(char* p) {
 
   while (*p) {
     if (isspace(*p)) {
+      p++;
+      continue;
+    }
+
+    if (*p == '"') {
+      cur = new_token(TK_STR, cur, ++p);
+      while (*p != '"')
+        p++;
+      cur->len = p - cur->str;
       p++;
       continue;
     }
@@ -355,14 +390,39 @@ Node* new_node_ident() {
   return node;
 }
 
+Node* new_node_string() {
+  Token* tok = consume_kind(TK_STR);
+  if (!tok)
+    return NULL;
+
+  LVar* var = find_string(tok);
+  if (!var)
+    var = new_string(tok);
+
+  Node* node = calloc(1, sizeof(Node));
+  node->kind = ND_STR;
+  node->type = var->type;
+  node->token = tok;
+  node->global = true;
+  node->offset = get_global_index(var);
+
+  return node;
+}
+
 Node* primary() {
+  Node* node;
+
   if (consume("(")) {
-    Node* node = expr();
+    node = expr();
     expect(")");
     return node;
   }
 
-  Node* node = new_node_ident();
+  node = new_node_ident();
+  if (node)
+    return node;
+
+  node = new_node_string();
   if (node)
     return node;
 
@@ -617,6 +677,7 @@ void program() {
     code[i++] = func();
   }
   code[i] = NULL;
+  globals = locals;
 }
 
 /*
@@ -643,6 +704,7 @@ void program() {
  *            | "&" unary
  *            | primary ("[" primary "]")*
  * primary    = num
+ *            | '"' string '"'
  *            | ident ("(" (expr ("," expr)*)? ")")?
  *            | "(" expr ")"
  */
